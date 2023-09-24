@@ -1,0 +1,20 @@
+menu "core-esp32"
+    config CORE_WIFI_ENABLE
+        bool "Enable Wifi Module"
+        default y
+        help
+            Enable WiFi module
+
+    config CORE_MQTT_ENABLE
+        bool "Enable MQTT Module"
+        default y
+        help
+            Enable MQTT module
+
+    config CORE_UART_CONSOLE_ENABLE
+        bool "Enable Uart Console"
+        default y
+        help
+            Enable Uart command line module
+
+endmenu

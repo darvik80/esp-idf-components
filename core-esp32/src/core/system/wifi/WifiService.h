@@ -1,0 +1,42 @@
+//
+// Created by Ivan Kishchenko on 21/09/2023.
+//
+
+#pragma once
+
+#include <esp_event.h>
+#include <freertos/event_groups.h>
+#include <esp_netif.h>
+#include <esp_wifi.h>
+
+#include "core/Core.h"
+#include "core/Registry.h"
+#include "core/Logger.h"
+#include "core/system/SystemEvent.h"
+#include "core/Timer.h"
+
+class WifiService
+        : public TService<WifiService, Service_Sys_Wifi, Sys_Core>,
+          public TPropertiesConsumer<WifiService, WifiProperties>,
+          public TEventSubscriber<WifiService, SystemEventChanged, Command> {
+    WifiProperties _props;
+
+    esp_netif_t* _netif{nullptr};
+private:
+    static void eventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+        auto *self = static_cast<WifiService *>(arg);
+        self->eventHandler(event_base, event_id, event_data);
+    }
+
+    void eventHandler(esp_event_base_t event_base, int32_t event_id, void *event_data);
+
+public:
+    explicit WifiService(Registry &registry);
+
+    void onEvent(const SystemEventChanged &msg);
+
+    void onEvent(const Command &cmd);
+
+    void apply(const WifiProperties &props);
+};
+
