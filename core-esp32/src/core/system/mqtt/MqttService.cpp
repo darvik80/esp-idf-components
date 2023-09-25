@@ -110,12 +110,18 @@ void MqttService::eventHandlerData(esp_event_base_t event_base, int32_t event_id
 
     for (const auto& it: _handlers) {
         std::string fullPath;
-        if (it.first.starts_with("rel:")) {
-            fullPath =_prefix;
+        switch (it.second.type) {
+            case MQTT_SUB_RELATIVE:
+                fullPath = _prefix;
+                break;
+            case MQTT_SUB_BROADCAST:
+                fullPath = _broadcast;
+            default:
+                break;
         }
-        fullPath.append(it.first.substr(4));
+        fullPath.append(it.first);
         if (compareTopics(fullPath, topic)) {
-            auto json = cJSON_ParseWithLength(event->data, event->data_len);
+            auto json = cJSON_ParseWithLength(message.data(), message.size());
             if (json) {
                 it.second.handler(json);
                 cJSON_Delete(json);
