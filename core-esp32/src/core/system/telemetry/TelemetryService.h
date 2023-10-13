@@ -10,9 +10,7 @@
 #include <driver/temperature_sensor.h>
 #endif
 
-#include "core/Registry.h"
-#include "core/Timer.h"
-#include "core/system/SystemEvent.h"
+#include "core/system/System.h"
 
 class TelemetryService: public TService<TelemetryService, Service_Sys_Telemetry, Sys_Core>
         , public TEventSubscriber<TelemetryService, TimerEvent<SysTid_Telemetry>> {

@@ -11,8 +11,6 @@
 #include <map>
 #include <set>
 #include "cJSON.h"
-#include "Core.h"
-
 
 struct Properties {
     typedef std::shared_ptr<Properties> Ptr;
@@ -22,7 +20,7 @@ struct Properties {
     virtual ~Properties() = default;
 };
 
-template<uint8_t id, System sysId = System::Sys_User>
+template<uint8_t id, uint8_t sysId>
 struct TProperties : Properties {
 public:
     enum {
@@ -33,36 +31,6 @@ public:
         return (id | ((uint16_t) sysId) << 8);
     }
 };
-
-struct WifiProperties : TProperties<Props_Sys_Wifi, System::Sys_Core> {
-    struct AccessPoint {
-        std::string ssid;
-        std::string password;
-    };
-    std::vector<AccessPoint> ap;
-};
-
-[[maybe_unused]] void fromJson(cJSON *json, WifiProperties &props);
-
-struct MqttProperties : TProperties<Props_Sys_Mqtt, System::Sys_Core> {
-    struct BrokerInfo {
-        std::string type;
-        std::string uri;
-        std::string username;
-        std::string password;
-        std::string caCert;
-        std::string clientCert;
-        std::string clientKey;
-        std::string productName;
-        std::string deviceName;
-        std::string deviceSecret;
-    };
-
-    std::vector<BrokerInfo> brokers;
-    int retries{3};
-};
-
-[[maybe_unused]] void fromJson(cJSON *json, MqttProperties &props);
 
 class PropertiesConsumer {
 public:

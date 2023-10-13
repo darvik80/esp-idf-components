@@ -9,7 +9,6 @@
 #include <esp_spiffs.h>
 
 #include "Registry.h"
-#include "Properties.h"
 
 template<typename T>
 class Application : public std::enable_shared_from_this<T>{

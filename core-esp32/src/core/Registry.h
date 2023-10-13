@@ -6,10 +6,10 @@
 
 #include <utility>
 #include <vector>
+#include <type_traits>
 
-#include "Properties.h"
-#include "Core.h"
 #include "EventBus.h"
+#include "Properties.h"
 
 typedef uint16_t ServiceId;
 typedef uint8_t ServiceSubId;
@@ -54,9 +54,14 @@ public:
     template<typename C, typename... T>
     C &create(T &&... all) {
         auto service = std::make_shared<C>(*this, std::forward<T>(all)...);
+        if constexpr (std::is_base_of<EventSubscriber, C>::value) {
+            esp_logi(tmpl, "subscribe service: %d", C::ID);
+            getEventBus().subscribe(service->shared_from_this());
+        } else {
+            esp_logi(tmpl, "not subscribed service: %d", C::ID);
+        }
+
         return static_cast<C&>(*_services.emplace_back(service).get());
-//
-//        return *(service.get());
     }
 
     template<typename C>
@@ -77,7 +82,7 @@ public:
     }
 };
 
-template<typename T, ServiceSubId Id, SystemId systemId = Sys_User>
+template<typename T, ServiceSubId Id, SystemId systemId>
 class TService : public Service, public std::enable_shared_from_this<T>{
     Registry &_registry;
 public:
@@ -97,14 +102,5 @@ public:
 
     DefaultEventBus& getBus() {
         return getDefaultEventBus();
-    }
-
-    void setup() override {
-        if constexpr (std::is_base_of<EventSubscriber, T>::value) {
-            esp_logi(tmpl, "subscribe service: %d", ID);
-            getBus().subscribe(TService::shared_from_this());
-        } else {
-            esp_logi(tmpl, "not subscribed service: %d", ID);
-        }
     }
 };

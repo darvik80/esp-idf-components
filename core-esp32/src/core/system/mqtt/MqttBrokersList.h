@@ -4,8 +4,7 @@
 
 #pragma once
 
-
-#include "core/Properties.h"
+#include "MqttProperties.h"
 
 class MqttBrokersList {
 public:

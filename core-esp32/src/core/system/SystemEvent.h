@@ -6,11 +6,12 @@
 #pragma once
 
 #include <cstdint>
-#include "core/Core.h"
-#include "core/EventBus.h"
 #include <string_view>
 #include <optional>
 #include <cJSON.h>
+
+#include "SystemService.h"
+#include "core/EventBus.h"
 
 enum SystemEventId {
     SysEvtId_Timer,

@@ -5,19 +5,9 @@
 
 #pragma once
 
-enum SystemPropId {
-    Props_Sys_Wifi,
-    Props_Sys_Mqtt,
-};
-
-enum SystemServiceId {
-    Service_Sys_Wifi,
-    Service_Sys_Mqtt,
-    Service_Sys_Console,
-    Service_Sys_Telemetry,
-};
-
-enum System {
-    Sys_Core = 0x01,
-    Sys_User = 0x02,
-};
+#include "core/Logger.h"
+#include "core/EventBus.h"
+#include "core/Properties.h"
+#include "core/Registry.h"
+#include "core/Timer.h"
+#include "core/Application.h"

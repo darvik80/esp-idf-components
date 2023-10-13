@@ -77,7 +77,7 @@ void MqttService::eventHandlerConnect(esp_event_base_t event_base, int32_t event
         fullPath.append(it.first);
 
         int msg_id = esp_mqtt_client_subscribe(_client, fullPath.c_str(), 0);
-        esp_logi(mqtt, "sent subscribe successful, topic=%s, msg_id=%d", fullPath.c_str(), msg_id);
+        esp_logi(mqtt, "sub successful, topic: %s, msg_id: %d", fullPath.c_str(), msg_id);
     }
     getBus().post(SystemEventChanged{.status = SystemStatus::Mqtt_Connected});
 }

@@ -15,7 +15,6 @@ TelemetryService::TelemetryService(Registry &registry) : TService(registry) {
 }
 
 void TelemetryService::onEvent(const TimerEvent<SysTid_Telemetry> & msg) {
-    esp_logi(mon, "%d, %d", msg.TimerId, msg.ID);
     Telemetry telemetry{
             .freeHeap = esp_get_free_heap_size(),
             .stackWatermark = uxTaskGetStackHighWaterMark(nullptr),

@@ -17,7 +17,6 @@
 #include <memory>
 #include <esp_check.h>
 #include <esp_event.h>
-#include "Core.h"
 #include "Logger.h"
 
 typedef uint16_t MsgId;

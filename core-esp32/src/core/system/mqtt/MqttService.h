@@ -4,13 +4,6 @@
 
 #pragma once
 
-#include "core/Core.h"
-#include "core/Registry.h"
-#include "core/Logger.h"
-#include "core/system/SystemEvent.h"
-#include "core/Timer.h"
-#include "MqttBrokersList.h"
-
 #include <esp_event.h>
 #include <mqtt_client.h>
 #include <set>
@@ -19,8 +12,10 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 
-#include "MqttBrokersList.h"
+#include "core/system/System.h"
 
+#include "MqttBrokersList.h"
+#include "MqttProperties.h"
 
 typedef std::function<void(const cJSON *json)> MqttJsonHandler;
 
