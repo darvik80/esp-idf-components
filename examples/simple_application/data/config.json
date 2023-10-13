@@ -1,0 +1,20 @@
+{
+  "wifi": [
+    {
+      "ssid": "ssid-ap",
+      "password": "ssid-pass"
+    },
+    {
+      "ssid": "alibaba-guest",
+      "password": ""
+    }
+  ],
+  "mqtt": {
+    "type": "local",
+    "uri": "mqtt://media-vn.local",
+    "username": "mqtt",
+    "password": "mqtt",
+    "device-name": "magic-lamp",
+    "product-name": "darvik-home"
+  }
+}
