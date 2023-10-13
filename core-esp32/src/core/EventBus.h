@@ -262,27 +262,12 @@ class TEventBus {
     };
 
     QueueHandle_t _queue{nullptr};
-    TaskHandle_t _taskHandle{nullptr};
 
     std::vector<EventSubscriber::Ptr> _subscribers;
 private:
     static void eventLoopTask(void *args) {
         auto self = (TEventBus *) args;
         self->doProcess();
-    }
-
-    void doProcess() {
-        Container container;
-        while (xQueueReceive(_queue, &container, portMAX_DELAY)) {
-            if (container.isPointer) {
-                esp_logd(bus, "recv copyable 0x%04x", container.eventId);
-                doEvent(container.eventId, *container.payload.ptr);
-                delete container.payload.ptr;
-            } else {
-                esp_logd(bus, "recv pointer 0x%04x", container.eventId);
-                doEvent(container.eventId, (Event &) container.payload);
-            }
-        }
     }
 
     void doEvent(uint16_t id, Event &msg) {
@@ -295,7 +280,20 @@ public:
     TEventBus() {
         esp_logi(bus, "create queue,  size: %d, item-size: %d", queueSize, sizeof(Container));
         _queue = xQueueCreate(queueSize, sizeof(Container));
-        xTaskCreate(eventLoopTask, "event-loop", taskStack, this, tskIDLE_PRIORITY, &_taskHandle);
+    }
+
+    void process() {
+        Container container;
+        while (xQueueReceive(_queue, &container, portMAX_DELAY)) {
+            if (container.isPointer) {
+                esp_logd(bus, "recv copyable 0x%04x", container.eventId);
+                doEvent(container.eventId, *container.payload.ptr);
+                delete container.payload.ptr;
+            } else {
+                esp_logd(bus, "recv pointer 0x%04x", container.eventId);
+                doEvent(container.eventId, (Event &) container.payload);
+            }
+        }
     }
 
     template<typename T>
@@ -348,7 +346,6 @@ public:
     }
 
     ~TEventBus() {
-        vTaskDelete(_taskHandle);
         vQueueDelete(_queue);
     }
 };
