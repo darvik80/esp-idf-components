@@ -248,9 +248,7 @@ public:
     }
 };
 
-ESP_EVENT_DECLARE_BASE(CORE_EVENT);
-
-template<size_t queueSize = 32, size_t itemSize = 64, size_t taskStack = 4096>
+template<size_t queueSize = 32, size_t itemSize = 64>
 class TEventBus {
     struct Container {
         uint16_t eventId{0};
@@ -265,11 +263,6 @@ class TEventBus {
 
     std::vector<EventSubscriber::Ptr> _subscribers;
 private:
-    static void eventLoopTask(void *args) {
-        auto self = (TEventBus *) args;
-        self->doProcess();
-    }
-
     void doEvent(uint16_t id, Event &msg) {
         for (const auto &sub: _subscribers) {
             sub->onEventHandle(id, msg);
@@ -307,8 +300,8 @@ public:
 
     template<typename T>
     esp_err_t send(T &msg) {
-        if (strcmp(pcTaskGetName(nullptr), "event-loop") != 0) {
-            esp_loge(bus, "can't send - incorrect task: 0x%04x", T::ID);
+        if (strcmp(pcTaskGetName(nullptr), "main") != 0) {
+            esp_loge(bus, "can't send - incorrect task: 0x%04x, task: '%s'", T::ID, pcTaskGetName(nullptr));
             return ESP_ERR_INVALID_ARG;
         }
 

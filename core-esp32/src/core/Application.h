@@ -18,6 +18,9 @@ protected:
     virtual void userSetup() {}
 
 public:
+    Registry &getRegistry() {
+        return _registry;
+    }
 
     virtual void setup() {
         esp_err_t ret = nvs_flash_init();
@@ -51,8 +54,8 @@ public:
         }
     }
 
-    Registry &getRegistry() {
-        return _registry;
+    virtual void process() {
+        getDefaultEventBus().process();
     }
 
     virtual void destroy() {

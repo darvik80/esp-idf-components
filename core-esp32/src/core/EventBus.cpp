@@ -4,8 +4,6 @@
 
 #include "EventBus.h"
 
-ESP_EVENT_DEFINE_BASE(CORE_EVENT);
-
 DefaultEventBus& getDefaultEventBus() {
     static DefaultEventBus bus;
 
