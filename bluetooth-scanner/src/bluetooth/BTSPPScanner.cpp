@@ -1,17 +1,15 @@
 //
 // Created by Ivan Kishchenko on 25/08/2023.
 //
-
 #include "BTSPPScanner.h"
-#include "BTUtils.h"
-#include "BTManager.h"
 
-#include "core/Helpers.h"
-#include "core/Logger.h"
-
+#ifdef CONFIG_BT_CLASSIC_ENABLED
 #include <esp_bt_main.h>
 #include <esp_bt.h>
 #include <esp_spp_api.h>
+
+#include "BTUtils.h"
+#include "BTManager.h"
 
 static esp_bd_addr_t lastBda;
 
@@ -83,7 +81,6 @@ static void sppCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
 }
 
 BTSppScanner::BTSppScanner(Registry &registry) : TService(registry) {
-    registry.getEventBus().subscribe(this);
 }
 
 void BTSppScanner::setup() {
@@ -98,14 +95,14 @@ void BTSppScanner::setup() {
 }
 
 void BTSppScanner::onEvent(const BTSppConnRequest &msg) {
-    esp_logi(spp, "dev:[%s] req conn", msg.bdAddr.c_str());
-    BTUtils::str2bda(msg.bdAddr.c_str(), lastBda);
+    esp_logi(spp, "dev: [%s] req conn", msg.bdAddr);
+    BTUtils::str2bda(msg.bdAddr, lastBda);
 
     ESP_ERROR_CHECK(esp_spp_start_discovery(lastBda));
 }
 
 void BTSppScanner::onEvent(const BTSppConnected &msg) {
-    esp_logi(spp, "dev:[%s] connected", msg.bdAddr);
+    esp_logi(spp, "dev: [%s] connected", msg.bdAddr);
     _devices.emplace(msg.handle, SppDeviceInfo{
             .bdAddr = msg.bdAddr,
             .handle = msg.handle,
@@ -115,7 +112,7 @@ void BTSppScanner::onEvent(const BTSppConnected &msg) {
 
 void BTSppScanner::onEvent(const BTSppDisconnected &msg) {
     if (auto it = _devices.find(msg.handle); it != _devices.end()) {
-        esp_logi(spp, "dev:[%s] disconnected", it->second.bdAddr.c_str());
+        esp_logi(spp, "dev: [%s] disconnected", it->second.bdAddr.c_str());
         _devices.erase(it);
     }
 }
@@ -143,3 +140,5 @@ void BTSppScanner::onEvent(const BTSppInput &msg) {
         }
     }
 }
+
+#endif

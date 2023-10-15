@@ -4,9 +4,10 @@
 
 #pragma once
 
+#ifdef CONFIG_BT_CLASSIC_ENABLED
+
 #include <esp_spp_api.h>
 #include "BTConfig.h"
-#include "core/Registry.h"
 
 struct SppDeviceInfo {
     std::string bdAddr;
@@ -14,7 +15,7 @@ struct SppDeviceInfo {
     std::string cache;
 };
 
-class BTSppScanner : public TService<Service_Lib_BTSppScanner> , public TEventSubscriber<BTSppScanner, BTSppConnRequest, BTSppConnected, BTSppDisconnected, BTSppInput> {
+class BTSppScanner : public TService<BTSppScanner, Service_Lib_BTSppScanner, SysLib_BT> , public TEventSubscriber<BTSppScanner, BTSppConnRequest, BTSppConnected, BTSppDisconnected, BTSppInput> {
     std::unordered_map<uint32_t, SppDeviceInfo> _devices;
 public:
     explicit BTSppScanner(Registry &registry);
@@ -30,3 +31,5 @@ public:
     void onEvent(const BTSppInput& msg);
 
 };
+
+#endif

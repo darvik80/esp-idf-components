@@ -55,11 +55,13 @@ public:
     }
 
     virtual void process() {
-        getDefaultEventBus().process();
+        getRegistry().getEventBus().process();
     }
 
     virtual void destroy() {
         ESP_ERROR_CHECK(esp_vfs_spiffs_unregister("storage"));
         ESP_ERROR_CHECK(esp_event_loop_delete_default());
     }
+
+    virtual ~Application() = default;
 };

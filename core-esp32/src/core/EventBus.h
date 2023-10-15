@@ -271,7 +271,7 @@ private:
 
 public:
     TEventBus() {
-        esp_logi(bus, "create queue,  size: %d, item-size: %d", queueSize, sizeof(Container));
+        esp_logi(bus, "create queue, size: %d, item-size: %d", queueSize, sizeof(Container));
         _queue = xQueueCreate(queueSize, sizeof(Container));
     }
 

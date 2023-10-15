@@ -46,7 +46,7 @@ static void registerWifi() {
 }
 
 static int restart(int argc, char **argv) {
-    esp_logi(uart, "restarting...");
+    printf("restarting...");
     esp_restart();
 }
 
@@ -63,7 +63,7 @@ static void registerRestart() {
 /** 'free' command prints available heap memory */
 
 static int freeMem(int argc, char **argv) {
-    esp_logi(uart, "free heap:%" PRIu32 "\n", esp_get_free_heap_size());
+    printf("free heap:%" PRIu32 "\n", esp_get_free_heap_size());
     return 0;
 }
 
@@ -89,8 +89,7 @@ void UartConsoleService::setup() {
     esp_console_repl_t *repl = nullptr;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
 
-    repl_config.prompt = CONFIG_IDF_TARGET
-                         ">";
+    repl_config.prompt = CONFIG_IDF_TARGET ">";
     repl_config.max_cmdline_length = 256;
     repl_config.history_save_path = "/storage/history.txt";
 

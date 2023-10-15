@@ -4,11 +4,10 @@
 
 #include "BTHidScanner.h"
 
-#include <esp_event.h>
 #include <esp_hidh.h>
-#include <core/Logger.h>
 #include "BTUtils.h"
 #include "BTHidCodes.h"
+#include <esp_hidh_api.h>
 
 char hidGetMap(HidModifiers modifiers, uint8_t code) {
     if (code >= KEY_A and code <= KEY_Z) {
@@ -49,8 +48,9 @@ char hidGetMap(HidModifiers modifiers, uint8_t code) {
 }
 
 void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *event_data) {
-    esp_hidh_event_t event = (esp_hidh_event_t) id;
-    esp_hidh_event_data_t *param = (esp_hidh_event_data_t *) event_data;
+    auto event = (esp_hidh_event_t) id;
+    auto *param = (esp_hidh_event_data_t *) event_data;
+    static char lastInput[10];
 
     switch (event) {
         case ESP_HIDH_START_EVENT: {
@@ -60,7 +60,7 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
         case ESP_HIDH_OPEN_EVENT: {
             if (param->open.status == ESP_OK) {
                 auto bda = esp_hidh_dev_bda_get(param->open.dev);
-                esp_logi(hid, ESP_BD_ADDR_STR " OPEN: %s", ESP_BD_ADDR_HEX(bda),
+                esp_logi(hid, "dev: [" ESP_BD_ADDR_STR "] open: %s", ESP_BD_ADDR_HEX(bda),
                          esp_hidh_dev_name_get(param->open.dev));
                 esp_hidh_dev_dump(param->open.dev, stdout);
 
@@ -69,21 +69,25 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
                 msg.dev = param->open.dev;
                 getDefaultEventBus().post(msg);
             } else {
-                esp_logi(hid, " OPEN failed!");
+                auto bda = esp_hidh_dev_bda_get(param->open.dev);
+                esp_logw(hid, "dev: [" ESP_BD_ADDR_STR "] open failed: %d", ESP_BD_ADDR_HEX(bda), param->open.status);
             }
             break;
         }
         case ESP_HIDH_BATTERY_EVENT: {
             const uint8_t *bda = esp_hidh_dev_bda_get(param->battery.dev);
-            esp_logi(hid, ESP_BD_ADDR_STR " BATTERY: %d%%", ESP_BD_ADDR_HEX(bda), param->battery.level);
+            esp_logi(hid, "dev: [" ESP_BD_ADDR_STR "] battery: %d%%", ESP_BD_ADDR_HEX(bda), param->battery.level);
             break;
         }
         case ESP_HIDH_INPUT_EVENT: {
             const uint8_t *bda = esp_hidh_dev_bda_get(param->input.dev);
-            BTHidInput msg;
+            BTHidInput msg{
+                    .usage = param->input.usage,
+            };
             BTUtils::bda2str(bda, msg.bdAddr);
             if (ESP_HID_USAGE_KEYBOARD == param->input.usage) {
                 if (param->input.length == sizeof(HidKeyboard)) {
+                    esp_logi(hid, "dev: [" ESP_BD_ADDR_STR "] input: keyboard", ESP_BD_ADDR_HEX(bda));
                     auto *keyEvent = (HidKeyboard *) param->input.data;
                     msg.data[0] = hidGetMap(keyEvent->modifiers, keyEvent->key1);
                     msg.data[1] = hidGetMap(keyEvent->modifiers, keyEvent->key2);
@@ -96,9 +100,26 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
                 }
             } else if (ESP_HID_USAGE_GENERIC == param->input.usage) {
                 if (param->input.length == sizeof(HidGeneric)) {
+                    esp_logi(hid, "dev: [" ESP_BD_ADDR_STR "] input: generic", ESP_BD_ADDR_HEX(bda));
+
                     auto *keyEvent = (HidGeneric *) param->input.data;
                     msg.data[0] = hidGetMap(keyEvent->modifiers, keyEvent->val);
                     getDefaultEventBus().post(msg);
+                }
+            } else if (ESP_HID_USAGE_GAMEPAD == param->input.usage) {
+                if (param->input.length == 10) {
+                    if (memcmp(lastInput, param->input.data, param->input.length) != 0) {
+                        esp_logi(
+                                hid, "dev: [" ESP_BD_ADDR_STR "] input: gamepad, report: %d, mapIdx: %d",
+                                ESP_BD_ADDR_HEX(bda),
+                                (int)param->input.report_id,
+                                (int)param->input.map_index
+                        );
+                        ESP_LOG_BUFFER_HEX("hid", param->input.data, param->input.length);
+                        memcpy(lastInput, param->input.data, param->input.length);
+                        memcpy(msg.data, param->input.data, param->input.length);
+                        getDefaultEventBus().post(msg);
+                    }
                 }
             }
 
@@ -128,7 +149,6 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
 }
 
 BTHidScanner::BTHidScanner(Registry &registry) : TService(registry) {
-    registry.getEventBus().subscribe(this);
 }
 
 void BTHidScanner::setup() {
@@ -141,14 +161,14 @@ void BTHidScanner::setup() {
 }
 
 void BTHidScanner::onEvent(const BTHidConnRequest &msg) {
-    esp_logi(hid, "dev:[%s] req conn", msg.bdAddr.c_str());
+    esp_logi(hid, "dev: [%s] req conn", msg.bdAddr);
     esp_bd_addr_t bda;
-    BTUtils::str2bda(msg.bdAddr.c_str(), bda);
-    esp_hidh_dev_open(bda, ESP_HID_TRANSPORT_BT, BLE_ADDR_TYPE_PUBLIC);
+    BTUtils::str2bda(msg.bdAddr, bda);
+    esp_hidh_dev_open(bda, msg.transport, msg.addrType);
 }
 
 void BTHidScanner::onEvent(const BTHidConnected &msg) {
-    esp_logi(hid, "dev:[%s] connected", msg.bdAddr);
+    esp_logi(hid, "dev: [%s] connected", msg.bdAddr);
 
     _devices.emplace(msg.bdAddr, HidDeviceInfo{
             .bdAddr = msg.bdAddr,
@@ -157,7 +177,7 @@ void BTHidScanner::onEvent(const BTHidConnected &msg) {
 }
 
 void BTHidScanner::onEvent(const BTHidDisconnected &msg) {
-    esp_logi(hid, "dev:[%s] disconnected", msg.bdAddr);
+    esp_logi(hid, "dev: [%s] disconnected", msg.bdAddr);
     if (auto it = _devices.find(msg.bdAddr); it != _devices.end()) {
         esp_hidh_dev_free(it->second.dev);
         _devices.erase(msg.bdAddr);
@@ -166,21 +186,43 @@ void BTHidScanner::onEvent(const BTHidDisconnected &msg) {
 
 void BTHidScanner::onEvent(const BTHidInput &msg) {
     if (auto it = _devices.find(msg.bdAddr); it != _devices.end()) {
-        it->second.cache.append(msg.data);
-        if (!it->second.cache.empty() && (it->second.cache.ends_with('\n'))) {
-            it->second.cache.resize(it->second.cache.size() - 1);
-            while (it->second.cache.starts_with(' ') || it->second.cache.starts_with('\t') ||
-                   it->second.cache.starts_with('\n') || it->second.cache.starts_with('\n')) {
-                it->second.cache.erase(it->second.cache.begin());
-            }
-            if (!it->second.cache.empty()) {
-                esp_logi(hid, "dev:%s, key: [%s]", msg.bdAddr, it->second.cache.c_str());
+        if (msg.usage == ESP_HID_USAGE_GENERIC || msg.usage == ESP_HID_USAGE_KEYBOARD) {
+            it->second.cache.append(msg.data);
+            if (!it->second.cache.empty() && (it->second.cache.ends_with('\n'))) {
+                it->second.cache.resize(it->second.cache.size() - 1);
+                while (it->second.cache.starts_with(' ') || it->second.cache.starts_with('\t') ||
+                       it->second.cache.starts_with('\n') || it->second.cache.starts_with('\n')) {
+                    it->second.cache.erase(it->second.cache.begin());
+                }
+                if (!it->second.cache.empty()) {
+                    esp_logi(hid, "dev:%s, key: [%s]", msg.bdAddr, it->second.cache.c_str());
 
-                BTScanner barcodeMsg;
-                barcodeMsg.bdAddr = it->second.bdAddr;
-                barcodeMsg.barcode = it->second.cache;
-                getRegistry().getEventBus().send(barcodeMsg);
-                it->second.cache.clear();
+                    BTScanner barcodeMsg;
+                    barcodeMsg.bdAddr = it->second.bdAddr;
+                    barcodeMsg.barcode = it->second.cache;
+                    getRegistry().getEventBus().send(barcodeMsg);
+                    it->second.cache.clear();
+                }
+            }
+        } else if (msg.usage == ESP_HID_USAGE_GAMEPAD) {
+            auto *gamepad = (HidGamePad *) msg.data;
+            esp_logi(hid, "gamepad:");
+            esp_logi(hid, "\tleftAxis: %02d:%02d", gamepad->leftAxisX, gamepad->leftAxisY);
+            esp_logi(hid, "\tRightAxis: %02d:%02d", gamepad->rightAxisX, gamepad->rightAxisY);
+            esp_logi(hid, "\tleftAxis: %d: rightAxis: %d", gamepad->keys2.leftAxis, gamepad->keys2.rightAxis);
+            esp_logi(hid, "\tlb: %d: rb: %d", gamepad->keys1.lb, gamepad->keys1.rb);
+            esp_logi(hid, "\tlt: %d: rt: %d", gamepad->lt, gamepad->rt);
+            if (gamepad->keys1.a) {
+                esp_logi(hid, "\tbtnA: pushed");
+            }
+            if (gamepad->keys1.b) {
+                esp_logi(hid, "\tbtnB: pushed");
+            }
+            if (gamepad->keys1.x) {
+                esp_logi(hid, "\tbtnX: pushed");
+            }
+            if (gamepad->keys1.y) {
+                esp_logi(hid, "\tbtnY: pushed");
             }
         }
     }

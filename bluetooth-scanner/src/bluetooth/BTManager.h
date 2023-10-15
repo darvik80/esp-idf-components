@@ -5,10 +5,10 @@
 #pragma once
 
 #include "BTConfig.h"
-#include "core/Registry.h"
 
-class BTManager : public TService<Service_Lib_BTManager> {
+class BTManager : public TService<BTManager, Service_Lib_BTManager, SysLib_BT> {
 public:
     explicit BTManager(Registry &registry) : TService(registry) {}
+
     void setup() override;
 };

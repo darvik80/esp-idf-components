@@ -9,7 +9,6 @@
 #include <esp_bt_defs.h>
 
 #include "BTConfig.h"
-#include "core/Registry.h"
 
 union HidModifiers {
     struct {
@@ -41,23 +40,62 @@ struct HidGeneric {
     uint8_t val;
 };
 
+struct HidGamePad {
+    uint8_t leftAxisX;
+    uint8_t leftAxisY;
+    uint8_t rightAxisX;
+    uint8_t rightAxisY;
+    uint8_t cursor;
+    union {
+        uint8_t all;
+        struct {
+            bool a: 1;     // 0x01
+            bool b: 1;     // 0x02
+            bool _1: 1;    // 0x04
+            bool x: 1;     // 0x08
+            bool y: 1;     // 0x10
+            bool _2: 1;    // 0x20
+            bool lb: 1;    // 0x40
+            bool rb: 1;    // 0x80
+        };
+    } keys1;
+    union {
+        uint8_t all;
+        struct {
+            bool lt: 1;         //0x01
+            bool rt: 1;         //0x02
+            bool select: 1;     //0x04
+            bool start: 1;      //0x08
+            bool _1: 1;         // 0x10
+            bool leftAxis: 1;   //0x20
+            bool rightAxis: 1;  //0x40
+        };
+    } keys2;
+    uint8_t lt;
+    uint8_t rt;
+    uint16_t reserved;
+};
+
 struct HidDeviceInfo {
     std::string bdAddr;
-    esp_hidh_dev_t* dev{};
+    esp_hidh_dev_t *dev{};
     std::string cache{};
 };
 
-class BTHidScanner : public TService<Service_Lib_BTHidScanner> , public TEventSubscriber<BTHidScanner, BTHidConnRequest, BTHidConnected, BTHidDisconnected, BTHidInput> {
+class BTHidScanner
+        : public TService<BTHidScanner, Service_Lib_BTHidScanner, SysLib_BT>,
+          public TEventSubscriber<BTHidScanner, BTHidConnRequest, BTHidConnected, BTHidDisconnected, BTHidInput> {
     std::unordered_map<std::string, HidDeviceInfo> _devices;
 public:
     explicit BTHidScanner(Registry &registry);
+
     void setup() override;
 
-    void onEvent(const BTHidConnRequest& msg);
+    void onEvent(const BTHidConnRequest &msg);
 
-    void onEvent(const BTHidConnected& msg);
+    void onEvent(const BTHidConnected &msg);
 
-    void onEvent(const BTHidDisconnected& msg);
+    void onEvent(const BTHidDisconnected &msg);
 
-    void onEvent(const BTHidInput& msg);
+    void onEvent(const BTHidInput &msg);
 };
