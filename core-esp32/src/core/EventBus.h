@@ -252,9 +252,9 @@ public:
 ESP_EVENT_DECLARE_BASE(CORE_EVENT);
 #endif
 
-
 template<size_t queueSize = 32, size_t itemSize = 64>
 class TEventBus {
+#ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
     struct Container {
         uint16_t eventId{0};
         bool isPointer{false};
@@ -263,7 +263,6 @@ class TEventBus {
             Event *ptr;
         } payload{0};
     };
-#ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
     QueueHandle_t _queue{nullptr};
 #endif
 
@@ -276,7 +275,6 @@ private:
     }
 
 #ifdef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
-
     static void eventLoop(void *handler_arg, esp_event_base_t base, int32_t id, void *event_data) {
         auto self = (TEventBus *) handler_arg;
         self->doEvent(id, *(Event *) event_data);
@@ -286,10 +284,11 @@ private:
 
 public:
     TEventBus() {
-        esp_logi(bus, "create queue, size: %d, item-size: %d", queueSize, sizeof(Container));
 #ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
+        esp_logi(bus, "create queue, size: %d, item-size: %d", queueSize, sizeof(Container));
         _queue = xQueueCreate(queueSize, sizeof(Container));
 #else
+        esp_logi(bus, "create esp-queue");
         esp_event_loop_create_default();
         esp_event_handler_register(CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this);
 #endif
@@ -322,6 +321,7 @@ public:
 
     template<typename T>
     esp_err_t send(T &msg) {
+        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
 #ifdef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
         if (strcmp(pcTaskGetName(nullptr), "sys_evt") != 0) {
 #else
@@ -339,6 +339,7 @@ public:
 
     template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
     esp_err_t post(const T &msg) {
+        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         esp_logd(bus, "post - copyable: 0x%04x", T::ID);
         return esp_event_post(CORE_EVENT, T::ID, &msg, sizeof(T), portMAX_DELAY);
     }
@@ -346,6 +347,7 @@ public:
 #else
     template<typename T, std::enable_if_t<sizeof(T) <= itemSize && std::is_trivially_copyable<T>::value, bool> = true>
     esp_err_t postISR(const T &msg) {
+        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         esp_logd(bus, "post - copyable: 0x%04x", T::ID);
         Container container{.eventId = T::ID, .isPointer= false};
         memcpy(container.payload.data, &msg, sizeof(T));
@@ -354,6 +356,7 @@ public:
 
     template<typename T, std::enable_if_t<sizeof(T) <= itemSize && std::is_trivially_copyable<T>::value, bool> = true>
     esp_err_t post(const T &msg) {
+        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");z
         esp_logd(bus, "post - copyable: 0x%04x", T::ID);
         Container container{.eventId = T::ID, .isPointer= false};
         memcpy(container.payload.data, &msg, sizeof(T));
@@ -362,6 +365,7 @@ public:
 
     template<typename T, std::enable_if_t<(sizeof(T) > itemSize) && std::is_trivially_copyable<T>::value, bool> = true>
     esp_err_t post(const T &msg) {
+        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         esp_logd(bus, "post - pointer: 0x%04x", T::ID);
         Container container{.eventId = T::ID, .isPointer= true, .payload {.ptr = new T(msg)}};
         return xQueueSendToBack(_queue, &container, portMAX_DELAY) == pdTRUE ? ESP_OK : ESP_FAIL;

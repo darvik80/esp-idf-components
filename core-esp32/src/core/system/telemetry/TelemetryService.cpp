@@ -15,12 +15,15 @@ TelemetryService::TelemetryService(Registry &registry) : TService(registry) {
 }
 
 void TelemetryService::onEvent(const TimerEvent<SysTid_Telemetry> & msg) {
+
     Telemetry telemetry{
             .freeHeap = esp_get_free_heap_size(),
+            .usedMemPercent = (1 - ((double) esp_get_free_heap_size() / 520 / 1024)) * 100,
             .stackWatermark = uxTaskGetStackHighWaterMark(nullptr),
     };
     esp_logi(mon, "telemetry:");
     esp_logi(mon, "\tfree-heap: %lu", telemetry.freeHeap);
+    esp_logi(mon, "\tused-mem-percent: %f", telemetry.usedMemPercent);
     esp_logi(mon, "\tstack-watermark: %lu", telemetry.stackWatermark);
 #if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
     float temp;

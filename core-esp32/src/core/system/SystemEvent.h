@@ -75,12 +75,14 @@ inline void toJson(cJSON *json, const SystemEventChanged &msg) {
 
 struct Telemetry : TEvent<SysEvtId_Telemetry, Sys_Core> {
     uint32_t freeHeap{};
+    double usedMemPercent{};
     uint32_t stackWatermark{};
     std::optional<float> temperature{0};
 };
 
 inline void toJson(cJSON *json, const Telemetry &msg) {
     cJSON_AddNumberToObject(json, "free-heap", msg.freeHeap);
+    cJSON_AddNumberToObject(json, "used-mem-percent", msg.usedMemPercent);
     cJSON_AddNumberToObject(json, "stack-watermark", msg.stackWatermark);
     if (msg.temperature) {
         cJSON_AddNumberToObject(json, "temperature", msg.temperature.value());

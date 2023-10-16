@@ -234,6 +234,8 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
 }
 
 void BleDiscovery::setup() {
+    ESP_ERROR_CHECK(esp_ble_gap_set_device_name("robot-espidf"));
+
     ESP_ERROR_CHECK(esp_ble_gap_register_callback(ble_gap_event_handler));
     ESP_ERROR_CHECK(esp_ble_gattc_register_callback(esp_hidh_gattc_event_handler));
 }
@@ -253,7 +255,6 @@ void BleDiscovery::onEvent(const BleDiscoveryRequest &msg) {
     esp_err_t ret = ESP_OK;
     if ((ret = esp_ble_gap_set_scan_params(&hid_scan_params)) != ESP_OK) {
         esp_logi(ble, "esp_ble_gap_set_scan_params failed: %d", ret);
-
     } else {
         if ((ret = esp_ble_gap_start_scanning(SCAN_DURATION_SECONDS)) != ESP_OK) {
             esp_logi(ble, "esp_ble_gap_start_scanning failed: %d", ret);
