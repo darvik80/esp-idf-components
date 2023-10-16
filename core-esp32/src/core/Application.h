@@ -53,10 +53,11 @@ public:
             }
         }
     }
-
+#ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
     virtual void process() {
         getRegistry().getEventBus().process();
     }
+#endif
 
     virtual void destroy() {
         ESP_ERROR_CHECK(esp_vfs_spiffs_unregister("storage"));

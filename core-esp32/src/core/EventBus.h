@@ -248,6 +248,11 @@ public:
     }
 };
 
+#ifdef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
+ESP_EVENT_DECLARE_BASE(CORE_EVENT);
+#endif
+
+
 template<size_t queueSize = 32, size_t itemSize = 64>
 class TEventBus {
     struct Container {
@@ -258,8 +263,9 @@ class TEventBus {
             Event *ptr;
         } payload{0};
     };
-
+#ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
     QueueHandle_t _queue{nullptr};
+#endif
 
     std::vector<EventSubscriber::Ptr> _subscribers;
 private:
@@ -269,12 +275,27 @@ private:
         }
     }
 
+#ifdef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
+
+    static void eventLoop(void *handler_arg, esp_event_base_t base, int32_t id, void *event_data) {
+        auto self = (TEventBus *) handler_arg;
+        self->doEvent(id, *(Event *) event_data);
+    }
+
+#endif
+
 public:
     TEventBus() {
         esp_logi(bus, "create queue, size: %d, item-size: %d", queueSize, sizeof(Container));
+#ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
         _queue = xQueueCreate(queueSize, sizeof(Container));
+#else
+        esp_event_loop_create_default();
+        esp_event_handler_register(CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this);
+#endif
     }
 
+#ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
     void process() {
         Container container;
         while (xQueueReceive(_queue, &container, portMAX_DELAY)) {
@@ -288,6 +309,7 @@ public:
             }
         }
     }
+#endif
 
     template<typename T>
     void subscribe(std::function<void(const T &msg)> callback) {
@@ -300,7 +322,11 @@ public:
 
     template<typename T>
     esp_err_t send(T &msg) {
+#ifdef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
+        if (strcmp(pcTaskGetName(nullptr), "sys_evt") != 0) {
+#else
         if (strcmp(pcTaskGetName(nullptr), "main") != 0) {
+#endif
             esp_loge(bus, "can't send - incorrect task: 0x%04x, task: '%s'", T::ID, pcTaskGetName(nullptr));
             return ESP_ERR_INVALID_ARG;
         }
@@ -309,6 +335,15 @@ public:
         return ESP_OK;
     }
 
+#ifdef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
+
+    template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
+    esp_err_t post(const T &msg) {
+        esp_logd(bus, "post - copyable: 0x%04x", T::ID);
+        return esp_event_post(CORE_EVENT, T::ID, &msg, sizeof(T), portMAX_DELAY);
+    }
+
+#else
     template<typename T, std::enable_if_t<sizeof(T) <= itemSize && std::is_trivially_copyable<T>::value, bool> = true>
     esp_err_t postISR(const T &msg) {
         esp_logd(bus, "post - copyable: 0x%04x", T::ID);
@@ -337,9 +372,12 @@ public:
         esp_loge(bus, "can't post - non-copyable: 0x%04x", T::ID);
         return ESP_ERR_INVALID_ARG;
     }
+#endif
 
     ~TEventBus() {
+#ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
         vQueueDelete(_queue);
+#endif
     }
 };
 

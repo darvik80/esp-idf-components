@@ -22,6 +22,7 @@ enum SystemEventId {
 
 enum SysTimerId {
     SysTid_Telemetry,
+    SysTid_TimerMaxId,
 };
 
 template<uint16_t timerId>

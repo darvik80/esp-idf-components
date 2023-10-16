@@ -17,4 +17,10 @@ menu "core-esp32"
         help
             Enable Uart command line module
 
+    config BUS_ESP_EVENT_LOOP_ENABLED
+        bool "Use ESP system event-loop"
+        default y
+        help
+            Enable use ESP system event-loop
+
 endmenu

@@ -135,7 +135,7 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
         }
         case ESP_HIDH_CLOSE_EVENT: {
             const uint8_t *bda = esp_hidh_dev_bda_get(param->close.dev);
-            esp_logi(hid, ESP_BD_ADDR_STR " CLOSE: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->close.dev));
+            esp_logi(hid, ESP_BD_ADDR_STR " CLOSE", ESP_BD_ADDR_HEX(bda));
             BTHidDisconnected msg;
             BTUtils::bda2str(bda, msg.bdAddr);
             msg.dev = param->close.dev;
@@ -203,26 +203,6 @@ void BTHidScanner::onEvent(const BTHidInput &msg) {
                     getRegistry().getEventBus().send(barcodeMsg);
                     it->second.cache.clear();
                 }
-            }
-        } else if (msg.usage == ESP_HID_USAGE_GAMEPAD) {
-            auto *gamepad = (HidGamePad *) msg.data;
-            esp_logi(hid, "gamepad:");
-            esp_logi(hid, "\tleftAxis: %02d:%02d", gamepad->leftAxisX, gamepad->leftAxisY);
-            esp_logi(hid, "\tRightAxis: %02d:%02d", gamepad->rightAxisX, gamepad->rightAxisY);
-            esp_logi(hid, "\tleftAxis: %d: rightAxis: %d", gamepad->keys2.leftAxis, gamepad->keys2.rightAxis);
-            esp_logi(hid, "\tlb: %d: rb: %d", gamepad->keys1.lb, gamepad->keys1.rb);
-            esp_logi(hid, "\tlt: %d: rt: %d", gamepad->lt, gamepad->rt);
-            if (gamepad->keys1.a) {
-                esp_logi(hid, "\tbtnA: pushed");
-            }
-            if (gamepad->keys1.b) {
-                esp_logi(hid, "\tbtnB: pushed");
-            }
-            if (gamepad->keys1.x) {
-                esp_logi(hid, "\tbtnX: pushed");
-            }
-            if (gamepad->keys1.y) {
-                esp_logi(hid, "\tbtnY: pushed");
             }
         }
     }
