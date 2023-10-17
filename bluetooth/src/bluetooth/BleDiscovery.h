@@ -6,6 +6,8 @@
 
 #include "BTConfig.h"
 
+#ifdef CONFIG_BT_BLE_ENABLED
+
 class BleDiscovery : public TService<BleDiscovery, Service_Lib_BleDiscovery, SysLib_BT>,
                      public TEventSubscriber<BleDiscovery, BleDiscoveryRequest> {
 public:
@@ -15,3 +17,5 @@ public:
 
     void onEvent(const BleDiscoveryRequest& msg);
 };
+
+#endif

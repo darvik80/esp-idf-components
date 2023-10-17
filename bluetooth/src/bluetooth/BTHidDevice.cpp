@@ -2,7 +2,7 @@
 // Created by Ivan Kishchenko on 29/08/2023.
 //
 
-#include "BTHidScanner.h"
+#include "BTHidDevice.h"
 
 #include <esp_hidh.h>
 #include "BTUtils.h"
@@ -148,10 +148,10 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
     }
 }
 
-BTHidScanner::BTHidScanner(Registry &registry) : TService(registry) {
+BTHidDevice::BTHidDevice(Registry &registry) : TService(registry) {
 }
 
-void BTHidScanner::setup() {
+void BTHidDevice::setup() {
     esp_hidh_config_t config = {
             .callback = hidhCallback,
             .event_stack_size = 4096,
@@ -160,14 +160,14 @@ void BTHidScanner::setup() {
     ESP_ERROR_CHECK(esp_hidh_init(&config));
 }
 
-void BTHidScanner::onEvent(const BTHidConnRequest &msg) {
+void BTHidDevice::onEvent(const BTHidConnRequest &msg) {
     esp_logi(hid, "dev: [%s] req conn", msg.bdAddr);
     esp_bd_addr_t bda;
     BTUtils::str2bda(msg.bdAddr, bda);
     esp_hidh_dev_open(bda, msg.transport, msg.addrType);
 }
 
-void BTHidScanner::onEvent(const BTHidConnected &msg) {
+void BTHidDevice::onEvent(const BTHidConnected &msg) {
     esp_logi(hid, "dev: [%s] connected", msg.bdAddr);
 
     _devices.emplace(msg.bdAddr, HidDeviceInfo{
@@ -176,7 +176,7 @@ void BTHidScanner::onEvent(const BTHidConnected &msg) {
     });
 }
 
-void BTHidScanner::onEvent(const BTHidDisconnected &msg) {
+void BTHidDevice::onEvent(const BTHidDisconnected &msg) {
     esp_logi(hid, "dev: [%s] disconnected", msg.bdAddr);
     if (auto it = _devices.find(msg.bdAddr); it != _devices.end()) {
         esp_hidh_dev_free(it->second.dev);
@@ -184,7 +184,7 @@ void BTHidScanner::onEvent(const BTHidDisconnected &msg) {
     }
 }
 
-void BTHidScanner::onEvent(const BTHidInput &msg) {
+void BTHidDevice::onEvent(const BTHidInput &msg) {
     if (auto it = _devices.find(msg.bdAddr); it != _devices.end()) {
         if (msg.usage == ESP_HID_USAGE_GENERIC || msg.usage == ESP_HID_USAGE_KEYBOARD) {
             it->second.cache.append(msg.data);

@@ -2,15 +2,14 @@
 // Created by Ivan Kishchenko on 15/10/2023.
 //
 
-#include <esp_gap_ble_api.h>
-#include <esp_hidd.h>
-#include <esp_hidh.h>
-#include <esp_gattc_api.h>
-#include <esp_gap_ble_api.h>
 #include "BleDiscovery.h"
 
+#ifdef CONFIG_BT_BLE_ENABLED
 
-#define SIZEOF_ARRAY(a) (sizeof(a)/sizeof(*a))
+#include <esp_gap_ble_api.h>
+#include <esp_hidh.h>
+#include <esp_gattc_api.h>
+
 
 static const char *s_gattc_evt_names[] = {"REG", "UNREG", "OPEN", "READ_CHAR", "WRITE_CHAR", "CLOSE", "SEARCH_CMPL",
                                           "SEARCH_RES", "READ_DESCR", "WRITE_DESCR", "NOTIFY", "PREP_WRITE", "EXEC",
@@ -40,7 +39,7 @@ static const char *ble_gap_evt_names[] = {"ADV_DATA_SET_COMPLETE", "SCAN_RSP_DAT
                                           "UPDATE_WHITELIST_COMPLETE"};
 
 const char *ble_gap_evt_str(uint8_t event) {
-    if (event >= SIZEOF_ARRAY(ble_gap_evt_names)) {
+    if (event >= (sizeof(ble_gap_evt_names)/sizeof(*ble_gap_evt_names))) {
         return "UNKNOWN";
     }
     return ble_gap_evt_names[event];
@@ -150,7 +149,6 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
          * */
         case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
             esp_logi(ble, "BLE GAP EVENT SCAN_PARAM_SET_COMPLETE");
-            //SEND_BLE_CB();
             break;
         }
         case ESP_GAP_BLE_SCAN_RESULT_EVT: {
@@ -162,7 +160,6 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
                 }
                 case ESP_GAP_SEARCH_INQ_CMPL_EVT:
                     esp_logi(ble, "BLE GAP EVENT SCAN DONE: %d", scan_result->scan_rst.num_resps);
-                    //SEND_BLE_CB();
                     break;
                 default:
                     break;
@@ -261,3 +258,5 @@ void BleDiscovery::onEvent(const BleDiscoveryRequest &msg) {
         }
     }
 }
+
+#endif

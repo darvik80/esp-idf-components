@@ -82,12 +82,12 @@ struct HidDeviceInfo {
     std::string cache{};
 };
 
-class BTHidScanner
-        : public TService<BTHidScanner, Service_Lib_BTHidScanner, SysLib_BT>,
-          public TEventSubscriber<BTHidScanner, BTHidConnRequest, BTHidConnected, BTHidDisconnected, BTHidInput> {
+class BTHidDevice
+        : public TService<BTHidDevice, Service_Lib_BTHidScanner, SysLib_BT>,
+          public TEventSubscriber<BTHidDevice, BTHidConnRequest, BTHidConnected, BTHidDisconnected, BTHidInput> {
     std::unordered_map<std::string, HidDeviceInfo> _devices;
 public:
-    explicit BTHidScanner(Registry &registry);
+    explicit BTHidDevice(Registry &registry);
 
     void setup() override;
 

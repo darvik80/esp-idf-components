@@ -1,4 +1,4 @@
 version: "0.1.0"
-description: Bluetooth Scanners
+description: Bluetooth Devices
 dependencies:
   idf: ">=5.0"
