@@ -19,7 +19,7 @@ public:
 
     template<uint16_t tid>
     void fire(uint32_t milliseconds, bool repeat) {
-        attach(milliseconds, repeat, [this]() {
+        attach(milliseconds, repeat, []() {
             TimerEvent<tid> event;
             getDefaultEventBus().post(event);
         });
