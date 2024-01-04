@@ -78,6 +78,7 @@ struct Telemetry : TEvent<SysEvtId_Telemetry, Sys_Core> {
     double usedMemPercent{};
     uint32_t stackWatermark{};
     std::optional<float> temperature{0};
+    int wifiRssi{};
 };
 
 inline void toJson(cJSON *json, const Telemetry &msg) {
@@ -87,4 +88,5 @@ inline void toJson(cJSON *json, const Telemetry &msg) {
     if (msg.temperature) {
         cJSON_AddNumberToObject(json, "temperature", msg.temperature.value());
     }
+    cJSON_AddNumberToObject(json, "wifi-rssi", msg.wifiRssi);
 }

@@ -63,6 +63,7 @@ static void log_error_if_nonzero(const char *message, int error_code) {
 }
 
 void MqttService::eventHandlerConnect(esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    esp_logi(mqtt, "connected");
     for (const auto &it: _handlers) {
         std::string fullPath;
         switch (it.second.type) {
@@ -145,6 +146,8 @@ void MqttService::eventHandlerError(esp_event_base_t event_base, int32_t event_i
 
 void MqttService::eventHandler(esp_event_base_t base, int32_t event_id, void *event_data) {
     switch (static_cast<esp_mqtt_event_id_t>(event_id)) {
+        case MQTT_EVENT_BEFORE_CONNECT:
+            break;
         case MQTT_EVENT_CONNECTED:
             xEventGroupSetBits(_eventGroup, BIT0);
             eventHandlerConnect(base, event_id, event_data);
@@ -160,6 +163,7 @@ void MqttService::eventHandler(esp_event_base_t base, int32_t event_id, void *ev
             eventHandlerError(base, event_id, event_data);
             break;
         default:
+            esp_logi(mqtt, "event: %ld", event_id);
             break;
     }
 }
@@ -199,7 +203,7 @@ void MqttService::createConnection(MqttBrokersList::BrokerInfo &broker) {
     _prefix = "/" + broker.productName + "/" + broker.deviceName;
     _broadcast = "/" + broker.productName;
 
-    esp_mqtt_client_start(_client);
+    ESP_ERROR_CHECK(esp_mqtt_client_start(_client));
 }
 
 void MqttService::destroyConnection() {
@@ -217,7 +221,7 @@ void MqttService::onEvent(const SystemEventChanged &msg) {
         case SystemStatus::Mqtt_Reconnect:
             if (_state == S_Wifi_Connected) {
                 auto [broker, update] = _balancer.getNextBroker();
-                esp_logi(mqtt, "trying connect mqtt: %s", broker.uri.c_str());
+                esp_logi(mqtt, "connecting: %s", broker.uri.c_str());
                 createConnection(broker);
                 _state = S_Mqtt_WaitConnection;
             }
@@ -229,6 +233,7 @@ void MqttService::onEvent(const SystemEventChanged &msg) {
             _state = S_Mqtt_Connected;
             break;
         case SystemStatus::Mqtt_Disconnected:
+            esp_logi(mqtt, "lost mqtt connection");
             _reconTimer.attach(100, false, [this]() {
                 getBus().post(SystemEventChanged{.status = SystemStatus::Mqtt_Reconnect});
             });

@@ -2,6 +2,7 @@
 // Created by Ivan Kishchenko on 21/09/2023.
 //
 
+#include <esp_wifi.h>
 #include "TelemetryService.h"
 
 TelemetryService::TelemetryService(Registry &registry) : TService(registry) {
@@ -16,11 +17,16 @@ TelemetryService::TelemetryService(Registry &registry) : TService(registry) {
 
 void TelemetryService::onEvent(const TimerEvent<SysTid_Telemetry> & msg) {
 
+    size_t free = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
+    size_t total = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
+
+
     Telemetry telemetry{
-            .freeHeap = esp_get_free_heap_size(),
-            .usedMemPercent = (1 - ((double) esp_get_free_heap_size() / 520 / 1024)) * 100,
+            .freeHeap = free,
+            .usedMemPercent =  ((double) (total-free) /total) * 100,
             .stackWatermark = uxTaskGetStackHighWaterMark(nullptr),
     };
+    esp_wifi_sta_get_rssi(&telemetry.wifiRssi);
     esp_logi(mon, "telemetry:");
     esp_logi(mon, "\tfree-heap: %lu", telemetry.freeHeap);
     esp_logi(mon, "\tused-mem-percent: %f", telemetry.usedMemPercent);
