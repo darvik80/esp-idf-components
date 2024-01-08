@@ -1,7 +1,7 @@
 //
 // Created by Ivan Kishchenko on 25/08/2023.
 //
-#include "BTSPPScanner.h"
+#include "BTSPPDevice.h"
 
 #ifdef CONFIG_BT_CLASSIC_ENABLED
 #include <esp_bt_main.h>
@@ -80,10 +80,10 @@ static void sppCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
     }
 }
 
-BTSppScanner::BTSppScanner(Registry &registry) : TService(registry) {
+BTSppDevice::BTSppDevice(Registry &registry) : TService(registry) {
 }
 
-void BTSppScanner::setup() {
+void BTSppDevice::setup() {
     ESP_ERROR_CHECK(esp_spp_register_callback(sppCallback));
 
     esp_spp_cfg_t bt_spp_cfg = {
@@ -94,14 +94,14 @@ void BTSppScanner::setup() {
     ESP_ERROR_CHECK(esp_spp_enhanced_init(&bt_spp_cfg));
 }
 
-void BTSppScanner::onEvent(const BTSppConnRequest &msg) {
+void BTSppDevice::onEvent(const BTSppConnRequest &msg) {
     esp_logi(spp, "dev: [%s] req conn", msg.bdAddr);
     BTUtils::str2bda(msg.bdAddr, lastBda);
 
     ESP_ERROR_CHECK(esp_spp_start_discovery(lastBda));
 }
 
-void BTSppScanner::onEvent(const BTSppConnected &msg) {
+void BTSppDevice::onEvent(const BTSppConnected &msg) {
     esp_logi(spp, "dev: [%s] connected", msg.bdAddr);
     _devices.emplace(msg.handle, SppDeviceInfo{
             .bdAddr = msg.bdAddr,
@@ -110,14 +110,14 @@ void BTSppScanner::onEvent(const BTSppConnected &msg) {
     });
 }
 
-void BTSppScanner::onEvent(const BTSppDisconnected &msg) {
+void BTSppDevice::onEvent(const BTSppDisconnected &msg) {
     if (auto it = _devices.find(msg.handle); it != _devices.end()) {
         esp_logi(spp, "dev: [%s] disconnected", it->second.bdAddr.c_str());
         _devices.erase(it);
     }
 }
 
-void BTSppScanner::onEvent(const BTSppInput &msg) {
+void BTSppDevice::onEvent(const BTSppInput &msg) {
     if (auto it = _devices.find(msg.handle); it != _devices.end()) {
         it->second.cache.append(msg.data);
         if (!it->second.cache.empty() && (it->second.cache.ends_with('\n'))) {

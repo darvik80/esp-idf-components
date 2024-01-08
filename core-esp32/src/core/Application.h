@@ -30,7 +30,7 @@ public:
         }
         ESP_ERROR_CHECK(ret);
 
-        ESP_ERROR_CHECK(esp_event_loop_create_default());
+        esp_event_loop_create_default();
 
         esp_vfs_spiffs_conf_t conf = {
                 .base_path = "/spiffs",
@@ -53,11 +53,6 @@ public:
             }
         }
     }
-#ifndef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
-    virtual void process() {
-        getRegistry().getEventBus().process();
-    }
-#endif
 
     virtual void destroy() {
         ESP_ERROR_CHECK(esp_vfs_spiffs_unregister("storage"));

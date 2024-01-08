@@ -121,9 +121,17 @@ struct BTSppDisconnected : TEvent<BT_MsgId_SppDisconnected, SysLib_BT> {
 };
 
 struct BTScanner : public TEvent<BT_MsgId_Scanner, SysLib_BT> {
-    std::string bdAddr;
-    std::string barcode;
+    char bdAddr[18]{};
+    char barcode[64]{};
 };
+
+inline BTScanner make(std::string_view bdAddr, std::string barcode) {
+    BTScanner msg;
+    strncpy(msg.bdAddr, bdAddr.data(), sizeof(msg.bdAddr));
+    strncpy(msg.barcode, barcode.data(), sizeof(msg.barcode));
+
+    return msg;
+}
 
 void toJson(cJSON* json, const BTScanner& msg);
 

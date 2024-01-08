@@ -17,10 +17,51 @@ menu "core-esp32"
         help
             Enable Uart command line module
 
-    config BUS_ESP_EVENT_LOOP_ENABLED
-        bool "Use ESP system event-loop"
-        default y
-        help
-            Enable use ESP system event-loop
+    menu "Event bus"
+        config BUS_ESP_EVENT_LOOP_ENABLED
+            bool "Use ESP event-loop"
+            default n
+            help
+                Enable use ESP event-loop
+        config BUS_ESP_SYSTEM_EVENT_LOOP
+            bool "Use ESP system event-loop"
+            default n
+            depends on BUS_ESP_EVENT_LOOP_ENABLED
+            help
+                Config use ESP system event-loop
+        config ESP_EVENT_QUEUE_SIZE
+            int "ESP event queue size"
+            default 32
+            depends on BUS_ESP_EVENT_LOOP_ENABLED && !BUS_ESP_SYSTEM_EVENT_LOOP
+            help
+                Config event queue size
 
+        config ESP_EVENT_TASK_STACK_SIZE
+            int "ESP event loop task stack size"
+            default 2304
+            depends on BUS_ESP_EVENT_LOOP_ENABLED && !BUS_ESP_SYSTEM_EVENT_LOOP
+            help
+                Config event task stack size
+
+        config BUS_FREE_RTOS_ENABLED
+            bool "Use free-rtos event-bus"
+            default y
+            depends on !BUS_ESP_EVENT_LOOP_ENABLED
+            help
+                Enable use free-rtos event-bus
+
+        config BUS_FREE_RTOS_QUEUE_SIZE
+            int "Free RTOS queue size"
+            default 32
+            depends on BUS_FREE_RTOS_ENABLED
+            help
+                Config Free RTOS queue size
+
+        config BUS_FREE_RTOS_TASK_STACK_SIZE
+            int "Free RTOS task stack size"
+            default 2304
+            depends on BUS_FREE_RTOS_ENABLED
+            help
+                Config Free RTOS task stack size
+    endmenu
 endmenu

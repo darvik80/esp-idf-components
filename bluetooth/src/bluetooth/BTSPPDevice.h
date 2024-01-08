@@ -15,10 +15,10 @@ struct SppDeviceInfo {
     std::string cache;
 };
 
-class BTSppScanner : public TService<BTSppScanner, Service_Lib_BTSppScanner, SysLib_BT> , public TEventSubscriber<BTSppScanner, BTSppConnRequest, BTSppConnected, BTSppDisconnected, BTSppInput> {
+class BTSppDevice : public TService<BTSppScanner, Service_Lib_BTSppScanner, SysLib_BT> , public TEventSubscriber<BTSppScanner, BTSppConnRequest, BTSppConnected, BTSppDisconnected, BTSppInput> {
     std::unordered_map<uint32_t, SppDeviceInfo> _devices;
 public:
-    explicit BTSppScanner(Registry &registry);
+    explicit BTSppDevice(Registry &registry);
 
     void setup() override;
 

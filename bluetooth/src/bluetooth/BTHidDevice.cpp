@@ -112,8 +112,8 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
                         esp_logi(
                                 hid, "dev: [" ESP_BD_ADDR_STR "] input: gamepad, report: %d, mapIdx: %d",
                                 ESP_BD_ADDR_HEX(bda),
-                                (int)param->input.report_id,
-                                (int)param->input.map_index
+                                (int) param->input.report_id,
+                                (int) param->input.map_index
                         );
                         ESP_LOG_BUFFER_HEX("hid", param->input.data, param->input.length);
                         memcpy(lastInput, param->input.data, param->input.length);
@@ -197,10 +197,8 @@ void BTHidDevice::onEvent(const BTHidInput &msg) {
                 if (!it->second.cache.empty()) {
                     esp_logi(hid, "dev:%s, key: [%s]", msg.bdAddr, it->second.cache.c_str());
 
-                    BTScanner barcodeMsg;
-                    barcodeMsg.bdAddr = it->second.bdAddr;
-                    barcodeMsg.barcode = it->second.cache;
-                    getRegistry().getEventBus().send(barcodeMsg);
+                    //getRegistry().getEventBus().send(barcodeMsg);
+                    getRegistry().getEventBus().post(make(it->second.bdAddr, it->second.cache));
                     it->second.cache.clear();
                 }
             }

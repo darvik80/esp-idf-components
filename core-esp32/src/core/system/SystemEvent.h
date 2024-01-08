@@ -38,6 +38,7 @@ struct Command : TEvent<SysEvtId_Command, Sys_Core> {
 };
 
 enum class SystemStatus {
+    Sys_Unknown,
     Wifi_Connected,
     Wifi_Disconnected,
     Wifi_ScanDone,
@@ -49,7 +50,7 @@ enum class SystemStatus {
 };
 
 struct SystemEventChanged : TEvent<SysEvtId_StatusChanged, Sys_Core> {
-    SystemStatus status;
+    SystemStatus status{SystemStatus::Sys_Unknown};
 };
 
 inline void toJson(cJSON *json, const SystemEventChanged &msg) {
