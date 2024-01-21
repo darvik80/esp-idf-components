@@ -8,6 +8,7 @@
 #include <vector>
 #include <functional>
 #include <map>
+#include <memory>
 #include "cJSON.h"
 
 struct Properties {

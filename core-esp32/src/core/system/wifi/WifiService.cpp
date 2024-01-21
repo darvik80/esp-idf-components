@@ -3,6 +3,7 @@
 //
 
 #include "WifiService.h"
+#include <esp_wifi.h>
 
 WifiService::WifiService(Registry &registry) : TService(registry) {
     registry.getPropsLoader().addReader("wifi", defaultPropertiesReader<WifiProperties>);

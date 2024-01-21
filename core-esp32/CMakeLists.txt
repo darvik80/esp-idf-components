@@ -2,12 +2,10 @@ cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
 
+if (${IDF_TARGET} STREQUAL "linux")
 file(GLOB SOURCES
-        src/core/*.cpp
-        src/core/system/mqtt/*.cpp
-        src/core/system/wifi/*.cpp
-        src/core/system/console/*.cpp
-        src/core/system/telemetry/*.cpp
+        src/core/EventBus.cpp
+        src/core/Properties.cpp
 )
 
 idf_component_register(
@@ -16,13 +14,34 @@ idf_component_register(
     INCLUDE_DIRS
         src
     REQUIRES
-        esp_timer
         esp_event
-        esp_wifi
-        console
         nvs_flash
-        mqtt
         spiffs
         json
-        driver
 )
+else ()
+    file(GLOB SOURCES
+            src/core/*.cpp
+            src/core/system/mqtt/*.cpp
+            src/core/system/wifi/*.cpp
+            src/core/system/console/*.cpp
+            src/core/system/telemetry/*.cpp
+    )
+
+    idf_component_register(
+            SRCS
+            ${SOURCES}
+            INCLUDE_DIRS
+            src
+            REQUIRES
+            esp_timer
+            esp_event
+            esp_wifi
+            console
+            nvs_flash
+            mqtt
+            spiffs
+            json
+            driver
+    )
+endif ()

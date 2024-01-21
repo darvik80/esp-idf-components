@@ -4,6 +4,8 @@
 
 #include "MqttProperties.h"
 
+#include <cstring>
+
 void fromJson(cJSON *json, MqttProperties::BrokerInfo &props) {
     cJSON *item = json->child;
     while (item) {

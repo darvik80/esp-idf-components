@@ -16,7 +16,11 @@
 
 #include <esp_log.h>
 
+#ifndef CONFIG_IDF_TARGET_LINUX
+#define log_format(letter, format)  LOG_COLOR_ ## letter "[" #letter "] [%06lu]\033[0;34m[%6s]" LOG_RESET_COLOR ": " format LOG_RESET_COLOR "\n"
+#else
 #define log_format(letter, format)  LOG_COLOR_ ## letter "[" #letter "] [%06u]\033[0;34m[%6s]" LOG_RESET_COLOR ": " format LOG_RESET_COLOR "\n"
+#endif
 
 #define esp_log_level(level, tag, format, ...) do {                     \
         if (level==ESP_LOG_ERROR )          { esp_log_write(ESP_LOG_ERROR,      tag, log_format(E, format), esp_log_timestamp(), tag, ##__VA_ARGS__); } \
