@@ -6,6 +6,8 @@ if (${IDF_TARGET} STREQUAL "linux")
 file(GLOB SOURCES
         src/core/EventBus.cpp
         src/core/Properties.cpp
+        src/core/Timer.cpp
+        src/core/system/telemetry/*.cpp
 )
 
 idf_component_register(
