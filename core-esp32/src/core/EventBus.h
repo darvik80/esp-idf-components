@@ -18,6 +18,8 @@
 #include <esp_check.h>
 #include <esp_event.h>
 #include <list>
+#include <string>
+#include <string_view>
 #include "Logger.h"
 
 typedef uint16_t MsgId;
@@ -254,7 +256,7 @@ ESP_EVENT_DECLARE_BASE(CORE_EVENT);
 struct EventBusOptions {
     bool useSystemQueue{false};
     int32_t queueSize{32};
-    size_t stackSize{4096};
+    uint32_t stackSize{4096};
     size_t priority{tskIDLE_PRIORITY};
     std::string name;
 };
@@ -336,7 +338,7 @@ public:
             opt(options);
         }
 
-        esp_logi(bus, "create queue, size: %ld, item-size: %d", options.queueSize, itemSize);
+        //esp_logi(bus, "create queue, size: %ld, item-size: %d", options.queueSize, itemSize);
         _queue = xQueueCreate(options.queueSize, sizeof(Item));
 
         auto res = xTaskCreate(

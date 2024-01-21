@@ -13,13 +13,12 @@
 #include "core/system/System.h"
 #include "WifiProperties.h"
 
-class WifiService
-        : public TService<WifiService, Service_Sys_Wifi, Sys_Core>,
+class WifiService : public TService<WifiService, Service_Sys_Wifi, Sys_Core>,
           public TPropertiesConsumer<WifiService, WifiProperties>,
           public TEventSubscriber<WifiService, SystemEventChanged, Command> {
     WifiProperties _props;
 
-    esp_netif_t* _netif{nullptr};
+    //esp_netif_t* _netif{nullptr};
 private:
     static void eventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
         auto *self = static_cast<WifiService *>(arg);
