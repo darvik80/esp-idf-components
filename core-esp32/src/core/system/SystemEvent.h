@@ -75,9 +75,9 @@ inline void toJson(cJSON *json, const SystemEventChanged &msg) {
 }
 
 struct Telemetry : TEvent<SysEvtId_Telemetry, Sys_Core> {
-    uint32_t freeHeap{};
+    size_t freeHeap{};
     double usedMemPercent{};
-    uint32_t stackWatermark{};
+    size_t stackWatermark{};
     std::optional<float> temperature{0};
     int wifiRssi{};
 };
