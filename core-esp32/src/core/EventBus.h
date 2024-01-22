@@ -251,9 +251,34 @@ public:
     }
 };
 
+#include <system_error>
+
+enum class bus_error {
+    ok = 0,
+    invalid_arguments,
+    not_enough_memory,
+};
+
+enum class bus_condition {
+    success,
+    memory_failed,
+    user_failed,
+};
+
+namespace std {
+    template<>
+    struct is_error_code_enum<bus_error> : true_type {
+    };
+    template<>
+    struct is_error_condition_enum<bus_condition> : true_type {
+    };
+}
+
+std::error_code make_error_code(bus_error);
+
 ESP_EVENT_DECLARE_BASE(CORE_EVENT);
 
-struct EventBusOptions {
+struct BusOptions {
     bool useSystemQueue{false};
     int32_t queueSize{32};
     uint32_t stackSize{4096};
@@ -261,17 +286,17 @@ struct EventBusOptions {
     std::string name;
 };
 
-typedef std::function<void(EventBusOptions &options)> EventBusOption;
+typedef std::function<void(BusOptions &options)> BusOption;
 
-EventBusOption withSystemQueue(bool useSystemQueue);
+BusOption withSystemQueue(bool useSystemQueue);
 
-EventBusOption withQueueSize(int32_t queueSize);
+BusOption withQueueSize(int32_t queueSize);
 
-EventBusOption withStackSize(size_t stackSize);
+BusOption withStackSize(size_t stackSize);
 
-EventBusOption withPrioritySize(size_t priority);
+BusOption withPrioritySize(size_t priority);
 
-EventBusOption withName(std::string_view name);
+BusOption withName(std::string_view name);
 
 class EventBus {
     std::list<EventSubscriber::Ptr> _subscribers;
@@ -332,8 +357,8 @@ private:
     }
 
 public:
-    FreeRTOSEventBus(std::initializer_list<EventBusOption> opts) {
-        EventBusOptions options;
+    FreeRTOSEventBus(std::initializer_list<BusOption> opts) {
+        BusOptions options;
         for (const auto &opt: opts) {
             opt(options);
         }
@@ -412,8 +437,8 @@ private:
     }
 
 public:
-    EspEventBus(std::initializer_list<EventBusOption> opts) {
-        EventBusOptions options;
+    EspEventBus(std::initializer_list<BusOption> opts) {
+        BusOptions options;
         for (const auto &opt: opts) {
             opt(options);
         }
@@ -477,3 +502,63 @@ typedef EspEventBus DefaultEventBus;
 #endif
 
 DefaultEventBus &getDefaultEventBus();
+
+#include <freertos/message_buffer.h>
+
+template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
+class FreeRTOSMessageBus {
+    MessageBufferHandle_t _handler{nullptr};
+    TaskHandle_t _task{nullptr};
+private:
+    static void task(void *args) {
+        auto *self = static_cast<FreeRTOSMessageBus *>(args);
+        self->process();
+    }
+
+    void process() {
+        T item;
+        while (xMessageBufferReceive(_handler, sizeof(T), &item, portMAX_DELAY) == sizeof(T)) {
+            if (item.flags.pointer) {
+                esp_logd(bus, "recv pointer 0x%04x", item.eventId);
+                doEvent(item.eventId, *item.payload.ptr);
+                delete item.payload.ptr;
+            } else {
+                esp_logd(bus, "recv copyable 0x%04x", item.eventId);
+                doEvent(item.eventId, (Event &) item.payload);
+            }
+        }
+    }
+
+public:
+    FreeRTOSMessageBus(std::initializer_list<BusOption> opts) {
+        BusOptions options;
+        for (const auto &opt: opts) {
+            opt(options);
+        }
+
+        _handler = xMessageBufferCreate(sizeof(T));
+
+        auto res = xTaskCreate(
+                task,
+                options.name.data(),
+                options.stackSize,
+                this,
+                options.priority,
+                &_task
+        );
+
+        ESP_ERROR_CHECK(res == pdPASS ? ESP_OK : ESP_ERR_INVALID_ARG);
+
+    }
+
+    esp_err_t post(const T &msg, TickType_t ticksWait) {
+        return xMessageBufferSend(_handler, &msg, sizeof(T), ticksWait) == sizeof(T) ? ESP_OK : ESP_ERR_INVALID_SIZE;
+    }
+
+    ~FreeRTOSMessageBus() {
+        vMessageBufferDelete(_handler);
+        if (_task) {
+            vTaskDelete(_task);
+        }
+    }
+};

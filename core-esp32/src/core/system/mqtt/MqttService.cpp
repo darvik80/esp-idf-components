@@ -215,9 +215,10 @@ void MqttService::destroyConnection() {
 }
 
 void MqttService::onEvent(const SystemEventChanged &msg) {
-    switch (msg.status) {
+      switch (msg.status) {
         case SystemStatus::Wifi_Connected:
             _state = S_Wifi_Connected;
+            [[fallthrough]];
         case SystemStatus::Mqtt_Reconnect:
             if (_state == S_Wifi_Connected) {
                 auto [broker, update] = _balancer.getNextBroker();

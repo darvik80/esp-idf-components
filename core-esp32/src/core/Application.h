@@ -6,9 +6,13 @@
 
 #include <esp_event.h>
 #include <nvs_flash.h>
+#if !defined(CONFIG_IDF_TARGET_LINUX)
 #include <esp_spiffs.h>
+#endif
 
 #include "Registry.h"
+
+#include <algorithm>
 
 template<typename T>
 class Application : public std::enable_shared_from_this<T>{
