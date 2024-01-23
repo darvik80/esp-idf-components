@@ -10,6 +10,8 @@
 
 #include "Registry.h"
 
+#include <algorithm>
+
 template<typename T>
 class Application : public std::enable_shared_from_this<T>{
     Registry _registry;
@@ -30,8 +32,7 @@ public:
         }
         ESP_ERROR_CHECK(ret);
 
-        esp_event_loop_create_default();
-
+#ifndef CONFIG_IDF_TARGET_LINUX
         esp_vfs_spiffs_conf_t conf = {
                 .base_path = "/spiffs",
                 .partition_label = "storage",
@@ -39,13 +40,21 @@ public:
                 .format_if_mount_failed = true,
         };
         ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
+#endif
+
+        esp_event_loop_create_default();
 
         userSetup();
         std::sort(getRegistry().getServices().begin(), getRegistry().getServices().end(), [](auto f, auto s) {
             return f->getServiceId() < s->getServiceId();
         });
 
+#ifndef CONFIG_IDF_TARGET_LINUX
         getRegistry().getPropsLoader().load("/spiffs/config.json");
+#else
+        getRegistry().getPropsLoader().load("config.json");
+#endif
+
         for (auto service: getRegistry().getServices()) {
             if (service) {
                 service->setup();
@@ -55,7 +64,10 @@ public:
     }
 
     virtual void destroy() {
+#ifndef CONFIG_IDF_TARGET_LINUX
         ESP_ERROR_CHECK(esp_vfs_spiffs_unregister("storage"));
+#endif
+
         ESP_ERROR_CHECK(esp_event_loop_delete_default());
     }
 

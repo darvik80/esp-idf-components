@@ -16,7 +16,7 @@
 
 #include <esp_log.h>
 
-#define log_format(letter, format)  LOG_COLOR_ ## letter "[" #letter "] [%06lu]\033[0;34m[%6s]" LOG_RESET_COLOR ": " format LOG_RESET_COLOR "\n"
+#define log_format(letter, format)  LOG_COLOR_ ## letter "[" #letter "] [%0" PRIu32 "]\033[0;34m[%6s]" LOG_RESET_COLOR ": " format LOG_RESET_COLOR "\n"
 
 #define esp_log_level(level, tag, format, ...) do {                     \
         if (level==ESP_LOG_ERROR )          { esp_log_write(ESP_LOG_ERROR,      tag, log_format(E, format), esp_log_timestamp(), tag, ##__VA_ARGS__); } \

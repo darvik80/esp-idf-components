@@ -29,6 +29,8 @@ public:
     virtual ~Timer() = default;
 };
 
+#ifndef CONFIG_IDF_TARGET_LINUX
+
 extern "C" {
 #include "esp_timer.h"
 }
@@ -61,6 +63,8 @@ public:
         detach();
     }
 };
+
+#endif
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>

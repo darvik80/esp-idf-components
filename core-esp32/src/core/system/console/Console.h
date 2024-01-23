@@ -6,7 +6,6 @@
 
 #include <esp_event.h>
 #include <freertos/event_groups.h>
-#include <esp_netif.h>
 #include "core/system/System.h"
 
 class UartConsoleService : public TService<UartConsoleService, Service_Sys_Console, Sys_Core> {

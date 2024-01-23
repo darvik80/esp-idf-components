@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <cstring>
 #include <string>
-#include <memory>
+#include <vector>
 #include <functional>
 #include <map>
-#include <set>
+#include <memory>
 #include "cJSON.h"
 
 struct Properties {

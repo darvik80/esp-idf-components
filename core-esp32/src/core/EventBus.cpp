@@ -7,7 +7,7 @@
 namespace {
     class bus_category : public std::error_category {
     public:
-        [[nodiscard]] const char *name() const override {
+        [[nodiscard]] const char *name() const noexcept override {
             return "bus";
         }
 
@@ -61,10 +61,7 @@ inline std::error_condition make_error_condition(bus_condition cond) noexcept {
     return {static_cast<int>(cond), bus_err_category};
 }
 
-#ifdef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
 ESP_EVENT_DEFINE_BASE(CORE_EVENT);
-#endif
-
 
 DefaultEventBus &getDefaultEventBus() {
     static DefaultEventBus bus{

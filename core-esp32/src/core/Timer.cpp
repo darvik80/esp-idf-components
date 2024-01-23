@@ -6,6 +6,8 @@
 #include "Timer.h"
 #include "core/system/SystemEvent.h"
 
+#ifndef CONFIG_IDF_TARGET_LINUX
+
 EspTimer::EspTimer() : _name("Timer") {}
 
 EspTimer::EspTimer(std::string_view name) : _name(name.data()) {}
@@ -36,6 +38,8 @@ void EspTimer::detach() {
         _timer = nullptr;
     }
 }
+
+#endif
 
 void SoftwareTimer::attach(uint32_t milliseconds, bool repeat, const std::function<void()> &callback) {
     _callback = callback;
