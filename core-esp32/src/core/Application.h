@@ -6,9 +6,7 @@
 
 #include <esp_event.h>
 #include <nvs_flash.h>
-#if !defined(CONFIG_IDF_TARGET_LINUX)
 #include <esp_spiffs.h>
-#endif
 
 #include "Registry.h"
 
@@ -33,6 +31,7 @@ public:
             ret = nvs_flash_init();
         }
         ESP_ERROR_CHECK(ret);
+
 #ifndef CONFIG_IDF_TARGET_LINUX
         esp_vfs_spiffs_conf_t conf = {
                 .base_path = "/spiffs",
@@ -42,6 +41,7 @@ public:
         };
         ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
 #endif
+
         esp_event_loop_create_default();
 
         userSetup();
@@ -67,7 +67,6 @@ public:
 #ifndef CONFIG_IDF_TARGET_LINUX
         ESP_ERROR_CHECK(esp_vfs_spiffs_unregister("storage"));
 #endif
-
 
         ESP_ERROR_CHECK(esp_event_loop_delete_default());
     }

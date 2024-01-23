@@ -363,7 +363,7 @@ public:
             opt(options);
         }
 
-        //esp_logi(bus, "create queue, size: %ld, item-size: %d", options.queueSize, itemSize);
+        esp_logi(bus, "create queue, size: %" PRIi32 ", item-size: %zu", options.queueSize, itemSize);
         _queue = xQueueCreate(options.queueSize, sizeof(Item));
 
         auto res = xTaskCreate(

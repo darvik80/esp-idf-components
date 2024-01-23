@@ -11,4 +11,4 @@ COMPONENT_PRIV_INCLUDEDIRS := src
 COMPONENT_SUBMODULES := src/core
 
 dependencies:
-  esp-idf: ">=5.0"
+  esp-idf: ">=5.1"

@@ -18,6 +18,7 @@ if (${IDF_TARGET} STREQUAL "linux")
             REQUIRES
             esp_event
             nvs_flash
+            spiffs
             json
     )
 else ()

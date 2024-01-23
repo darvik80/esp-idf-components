@@ -9,6 +9,10 @@
 
 #include <esp_heap_caps.h>
 
+#if defined(CONFIG_ESP32_WIFI_ENABLED)
+#include <esp_wifi.h>
+#endif
+
 TelemetryService::TelemetryService(Registry&registry) : TService(registry) {
     _timer.fire<SysTid_Telemetry>(10000, true);
 

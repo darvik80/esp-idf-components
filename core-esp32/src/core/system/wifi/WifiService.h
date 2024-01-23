@@ -4,12 +4,17 @@
 
 #pragma once
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
+#include <esp_event.h>
 #include <esp_netif.h>
+#include <esp_wifi.h>
 
 #include "core/system/System.h"
 #include "WifiProperties.h"
 
-class WifiService : public TService<WifiService, Service_Sys_Wifi, Sys_Core>,
+class WifiService
+        : public TService<WifiService, Service_Sys_Wifi, Sys_Core>,
           public TPropertiesConsumer<WifiService, WifiProperties>,
           public TEventSubscriber<WifiService, SystemEventChanged, Command> {
     WifiProperties _props;
