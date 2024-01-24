@@ -60,3 +60,20 @@
 #else
 #define esp_logv(tag, format, ...)
 #endif
+
+#include <system_error>
+#include <source_location>
+
+inline void check_error(std::error_code code, std::source_location l = std::source_location::current()) {
+    if (code) {
+        esp_loge(system, LOG_COLOR_W "%s\n\t" LOG_COLOR_E "%s %s:%" PRIuLEAST32, code.message().c_str(),
+                 l.function_name(), l.file_name(), l.line());
+    } else {
+        esp_logd(system, LOG_COLOR_I "%s\n\t" LOG_COLOR_I "%s %s:%" PRIuLEAST32, code.message().c_str(),
+                 l.function_name(), l.file_name(), l.line());
+    }
+}
+
+#define std_error_check(code) do {                          \
+    check_error(code, std::source_location::current());     \
+} while(0)

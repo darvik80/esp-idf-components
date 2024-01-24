@@ -2,7 +2,6 @@
 // Created by Ivan Kishchenko on 04/09/2023.
 //
 
-
 #pragma once
 
 #include <cstdint>
@@ -22,9 +21,36 @@
 #include <string_view>
 #include "Logger.h"
 
-typedef uint16_t MsgId;
+#include <system_error>
 
-typedef uint8_t SubMsgId;
+enum class bus_error {
+    ok = 0,
+    fail,
+    invalid_state,
+    invalid_arguments,
+    out_of_memory,
+    timeout,
+};
+
+enum class bus_condition {
+    success,
+    fail,
+};
+
+namespace std {
+    template<>
+    struct is_error_code_enum<bus_error> : true_type {
+    };
+    template<>
+    struct is_error_condition_enum<bus_condition> : true_type {
+    };
+}
+
+std::error_code make_error_code(bus_error);
+
+std::error_code make_error_code(esp_err_t e);
+
+inline std::error_condition make_error_condition(bus_condition cond) noexcept;
 
 #define DEF_MSG_ID(id, sysId, params) (id | (((uint16_t)sysId & 0x03) << 8) | ((uint16_t)params << 10))
 
@@ -251,31 +277,6 @@ public:
     }
 };
 
-#include <system_error>
-
-enum class bus_error {
-    ok = 0,
-    invalid_arguments,
-    not_enough_memory,
-};
-
-enum class bus_condition {
-    success,
-    memory_failed,
-    user_failed,
-};
-
-namespace std {
-    template<>
-    struct is_error_code_enum<bus_error> : true_type {
-    };
-    template<>
-    struct is_error_condition_enum<bus_condition> : true_type {
-    };
-}
-
-std::error_code make_error_code(bus_error);
-
 ESP_EVENT_DECLARE_BASE(CORE_EVENT);
 
 struct BusOptions {
@@ -363,7 +364,7 @@ public:
             opt(options);
         }
 
-        esp_logi(bus, "create queue, size: %" PRIi32 ", item-size: %zu", options.queueSize, itemSize);
+        esp_logi(bus, "create freertos queue: " LOG_COLOR_I "%s" LOG_RESET_COLOR ", size: %" PRIi32 ", item-size: %zu", options.name.c_str(), options.queueSize, itemSize);
         _queue = xQueueCreate(options.queueSize, sizeof(Item));
 
         auto res = xTaskCreate(
@@ -375,48 +376,48 @@ public:
                 &_task
         );
 
-        ESP_ERROR_CHECK(res == pdPASS ? ESP_OK : ESP_ERR_INVALID_ARG);
+        std_error_check(res == pdPASS ? bus_error::ok : bus_error::invalid_arguments);
     }
 
     template<typename T, std::enable_if_t<sizeof(T) <= itemSize && std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t post(const T &msg) {
+    std::error_code post(const T &msg) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         Item item{.eventId = T::ID, .flags {.pointer = false}};
         memcpy(item.payload.data, &msg, sizeof(T));
-        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE ? ESP_OK : ESP_FAIL;
+        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE ? bus_error::ok : bus_error::fail;
     }
 
     template<typename T, std::enable_if_t<(sizeof(T) > itemSize) && std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t post(const T &msg) {
+    std::error_code post(const T &msg) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         Item item{.eventId = T::ID, .flags {.pointer = true}, .payload {.ptr = new T(msg)}};
-        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE ? ESP_OK : ESP_FAIL;
+        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE ? bus_error::ok : bus_error::fail;
     }
 
     template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t send(T &msg) {
+    std::error_code send(T &msg) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         if (strcmp(pcTaskGetName(nullptr), pcTaskGetName(_task)) != 0) {
             esp_loge(bus, "can't send - incorrect task: 0x%04x, task: '%s'", T::ID, pcTaskGetName(nullptr));
-            return ESP_ERR_INVALID_ARG;
+            return bus_error::invalid_arguments;
         }
 
         doEvent(T::ID, msg);
-        return ESP_OK;
+        return bus_error::ok;
     }
 
     template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t post(const T &msg) {
+    std::error_code post(const T &msg) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         esp_loge(bus, "can't post - non-copyable msg: 0x%04x", T::ID);
-        return ESP_ERR_INVALID_ARG;
+        return bus_error::invalid_arguments;
     }
 
     template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t send(T &msg) {
+    std::error_code send(T &msg) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         esp_loge(bus, "can't send - non-copyable msg: 0x%04x", T::ID);
-        return ESP_ERR_INVALID_ARG;
+        return bus_error::invalid_arguments;
     }
 
     ~FreeRTOSEventBus() {
@@ -443,12 +444,12 @@ public:
             opt(options);
         }
 
+        esp_logi(bus, "create esp-event-bus: " LOG_COLOR_I "%s" LOG_RESET_COLOR ", size: %" PRIi32 "", options.name.c_str(), options.queueSize);
+        _task = options.name;
         if (options.useSystemQueue) {
-            _task = "sys_evt";
             esp_event_loop_create_default();
             esp_event_handler_register(CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this);
         } else {
-            _task = options.name;
             esp_event_loop_args_t loop_args = {
                     .queue_size = options.queueSize,
                     .task_name = options.name.c_str(),
@@ -457,41 +458,41 @@ public:
                     .task_core_id = 0
             };
 
-            ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &_eventLoop));
-            ESP_ERROR_CHECK(esp_event_handler_register_with(_eventLoop, CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this));
+            std_error_check(make_error_code(esp_event_loop_create(&loop_args, &_eventLoop)));
+            std_error_check(make_error_code(esp_event_handler_register_with(_eventLoop, CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this)));
         }
     }
 
     template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t post(const T &msg) {
+    std::error_code post(const T &msg) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
-        return esp_event_post(CORE_EVENT, T::ID, &msg, sizeof(T), portMAX_DELAY);
+        return make_error_code(esp_event_post(CORE_EVENT, T::ID, &msg, sizeof(T), portMAX_DELAY));
     }
 
     template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t send(T &msg) {
+    std::error_code send(T &msg) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         if (_task == pcTaskGetName(nullptr)) {
             esp_loge(bus, "can't send - incorrect task: 0x%04x, task: '%s'", T::ID, pcTaskGetName(nullptr));
-            return ESP_ERR_INVALID_ARG;
+            return bus_error::invalid_arguments;
         }
 
         doEvent(T::ID, msg);
-        return ESP_OK;
+        return bus_error::ok;
     }
 
     template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t post(const T &) {
+    std::error_code post(const T &) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         esp_loge(bus, "can't post - non-copyable msg: 0x%04x", T::ID);
-        return ESP_ERR_INVALID_ARG;
+        return bus_error::invalid_arguments;
     }
 
     template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    esp_err_t send(T &) {
+    std::error_code send(T &) {
         static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
         esp_loge(bus, "can't send - non-copyable msg: 0x%04x", T::ID);
-        return ESP_ERR_INVALID_ARG;
+        return bus_error::invalid_arguments;
     }
 };
 
@@ -547,12 +548,12 @@ public:
                 &_task
         );
 
-        ESP_ERROR_CHECK(res == pdPASS ? ESP_OK : ESP_ERR_INVALID_ARG);
+        std_error_check(res == pdPASS ? bus_error::ok : bus_error::invalid_arguments);
 
     }
 
-    esp_err_t post(const T &msg, TickType_t ticksWait) {
-        return xMessageBufferSend(_handler, &msg, sizeof(T), ticksWait) == sizeof(T) ? ESP_OK : ESP_ERR_INVALID_SIZE;
+    std::error_code post(const T &msg, TickType_t ticksWait) {
+        return xMessageBufferSend(_handler, &msg, sizeof(T), ticksWait) == sizeof(T) ?  bus_error::ok :  bus_error::timeout;
     }
 
     ~FreeRTOSMessageBus() {

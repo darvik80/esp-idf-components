@@ -15,10 +15,16 @@ namespace {
             switch ((bus_error) ev) {
                 case bus_error::ok:
                     return "ok";
+                case bus_error::fail:
+                    return "fail";
+                case bus_error::invalid_state:
+                    return "invalid state";
                 case bus_error::invalid_arguments:
                     return "invalid arguments";
-                case bus_error::not_enough_memory:
+                case bus_error::out_of_memory:
                     return "not enough memory";
+                case bus_error::timeout:
+                    return "operation timeout";
                 default:
                     return "(unrecognized error)";
             }
@@ -27,14 +33,11 @@ namespace {
         [[nodiscard]] std::error_condition default_error_condition(int err_value) const noexcept override {
             bus_condition result;
             switch (static_cast<bus_error>(err_value)) {
-                case bus_error::not_enough_memory:
-                    result = bus_condition::memory_failed;
-                    break;
-                case bus_error::invalid_arguments:
-                    result = bus_condition::user_failed;
+                case bus_error::ok:
+                    result = bus_condition::success;
                     break;
                 default:
-                    result = bus_condition::success;
+                    result = bus_condition::fail;
 
             }
             return result;
@@ -53,8 +56,34 @@ namespace {
     const bus_category bus_err_category{};
 }
 
-inline std::error_code make_error_code(bus_error e) {
+std::error_code make_error_code(bus_error e) {
     return {static_cast<int>(e), bus_err_category};
+}
+
+std::error_code make_error_code(esp_err_t e) {
+    bus_error err;
+    switch (e) {
+        case ESP_OK:
+            err = bus_error::ok;
+            break;
+        case ESP_ERR_INVALID_STATE:
+            err = bus_error::invalid_state;
+            break;
+        case ESP_ERR_INVALID_ARG:
+            err = bus_error::invalid_arguments;
+            break;
+        case ESP_ERR_NO_MEM:
+            err = bus_error::out_of_memory;
+            break;
+        case ESP_ERR_TIMEOUT:
+            err = bus_error::timeout;
+            break;
+        default:
+            err = bus_error::fail;
+            break;
+    }
+
+    return make_error_code(err);
 }
 
 inline std::error_condition make_error_condition(bus_condition cond) noexcept {
@@ -90,6 +119,7 @@ DefaultEventBus &getDefaultEventBus() {
 
 BusOption withSystemQueue(bool useSystemQueue) {
     return [useSystemQueue](BusOptions &options) {
+        options.name = "sys_evt";
         options.useSystemQueue = useSystemQueue;
     };
 }
@@ -114,7 +144,9 @@ BusOption withPrioritySize(size_t priority) {
 
 BusOption withName(std::string_view name) {
     return [name](BusOptions &options) {
-        options.name = name;
+        if (!options.useSystemQueue) {
+            options.name = name;
+        } // else ignore name
     };
 }
 
