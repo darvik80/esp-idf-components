@@ -41,20 +41,20 @@ void EspTimer::detach() {
 
 #endif
 
-void SoftwareTimer::attach(uint32_t milliseconds, bool repeat, const std::function<void()> &callback) {
+void FreeRTOSTimer::attach(uint32_t milliseconds, bool repeat, const std::function<void()> &callback) {
     _callback = callback;
     _timer = xTimerCreate(
             "timer",
             pdMS_TO_TICKS(milliseconds),
             repeat,
             this,
-            SoftwareTimer::onCallback
+            FreeRTOSTimer::onCallback
     );
 
     xTimerStart(_timer, 0);
 }
 
-SoftwareTimer::~SoftwareTimer() {
+FreeRTOSTimer::~FreeRTOSTimer() {
     xTimerStop(_timer, 0);
     xTimerDelete(_timer, 0);
 }

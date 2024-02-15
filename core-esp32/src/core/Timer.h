@@ -69,13 +69,13 @@ public:
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
 
-class SoftwareTimer : public Timer {
+class FreeRTOSTimer : public Timer {
     TimerHandle_t _timer{};
 
     std::function<void()> _callback;
 private:
     static void onCallback(TimerHandle_t timer) {
-        auto self = static_cast<SoftwareTimer *>( pvTimerGetTimerID(timer));
+        auto self = static_cast<FreeRTOSTimer *>( pvTimerGetTimerID(timer));
         self->doCallback();
     }
 
@@ -84,9 +84,9 @@ private:
     }
 
 public:
-    SoftwareTimer() = default;
+    FreeRTOSTimer() = default;
 
     void attach(uint32_t milliseconds, bool repeat, const std::function<void()> &callback) override;
 
-    ~SoftwareTimer() override;
+    ~FreeRTOSTimer() override;
 };

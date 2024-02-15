@@ -6,6 +6,7 @@ if (${IDF_TARGET} STREQUAL "linux")
             src/core/EventBus.cpp
             src/core/Properties.cpp
             src/core/Timer.cpp
+            src/core/Task.cpp
             src/core/system/telemetry/*.cpp
     )
 
