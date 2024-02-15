@@ -17,13 +17,13 @@ public:
 
     virtual void attach(uint32_t milliseconds, bool repeat, const std::function<void()> &callback) = 0;
 
-    template<uint16_t tid>
+    template<uint8_t tid>
     void fire(uint32_t milliseconds, bool repeat) {
         attach(milliseconds, repeat, []() {
             TimerEvent<tid> event;
+            esp_logi(t, "timer: %d:%d", event.TimerId, event.ID);
             getDefaultEventBus().post(event);
         });
-
     }
 
     virtual ~Timer() = default;

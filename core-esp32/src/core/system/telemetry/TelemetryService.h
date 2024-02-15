@@ -13,7 +13,7 @@
 #include "core/system/System.h"
 
 class TelemetryService: public TService<TelemetryService, Service_Sys_Telemetry, Sys_Core>
-        , public TEventSubscriber<TelemetryService, TimerEvent<SysTid_Telemetry>> {
+        , public TMessageSubscriber<TelemetryService, TimerEvent<SysTid_Telemetry>> {
 private:
     SoftwareTimer _timer;
 #if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
@@ -21,6 +21,6 @@ private:
 #endif
 public:
     explicit TelemetryService(Registry &registry);
-    void onEvent(const TimerEvent<SysTid_Telemetry>&);
+    void handle(const TimerEvent<SysTid_Telemetry>&);
     ~TelemetryService() override;
 };

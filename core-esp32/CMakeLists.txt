@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
-
 if (${IDF_TARGET} STREQUAL "linux")
     file(GLOB SOURCES
+            src/core/v2/*.cpp
             src/core/EventBus.cpp
             src/core/Properties.cpp
             src/core/Timer.cpp
@@ -24,6 +23,7 @@ if (${IDF_TARGET} STREQUAL "linux")
 else ()
     file(GLOB SOURCES
             src/core/*.cpp
+            src/core/v2/*.cpp
             src/core/system/mqtt/*.cpp
             src/core/system/wifi/*.cpp
             src/core/system/console/*.cpp

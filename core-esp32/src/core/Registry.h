@@ -54,7 +54,7 @@ public:
     template<typename C, typename... T>
     C &create(T &&... all) {
         auto service = std::make_shared<C>(*this, std::forward<T>(all)...);
-        if constexpr (std::is_base_of<EventSubscriber, C>::value) {
+        if constexpr (std::is_base_of<MessageSubscriber, C>::value) {
             esp_logi(tmpl, "subscribe service: 0x%04x", C::ID);
             getEventBus().subscribe(service->shared_from_this());
         } else {
