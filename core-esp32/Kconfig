@@ -59,7 +59,7 @@ menu "core-esp32"
 
         config BUS_FREE_RTOS_TASK_STACK_SIZE
             int "Free RTOS task stack size"
-            default 2304
+            default 4096
             depends on BUS_FREE_RTOS_ENABLED
             help
                 Config Free RTOS task stack size
