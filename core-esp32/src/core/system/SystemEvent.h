@@ -22,17 +22,18 @@ enum SystemEventId {
 
 enum SysTimerId {
     SysTid_Telemetry,
+    SysTid_User,
     SysTid_TimerMaxId,
 };
 
-template<uint16_t timerId>
-struct TimerEvent : TEvent<SysEvtId_Timer, Sys_Core, timerId> {
+template<uint8_t timerId>
+struct TimerEvent : TMessage<SysEvtId_Timer, Sys_Core, timerId> {
     enum {
         TimerId = timerId
     };
 };
 
-struct Command : TEvent<SysEvtId_Command, Sys_Core> {
+struct Command : TMessage<SysEvtId_Command, Sys_Core> {
     char cmd[17]{0};
     char params[32]{0};
 };
@@ -49,7 +50,7 @@ enum class SystemStatus {
     Mqtt_Disconnected,
 };
 
-struct SystemEventChanged : TEvent<SysEvtId_StatusChanged, Sys_Core> {
+struct SystemEventChanged : TMessage<SysEvtId_StatusChanged, Sys_Core> {
     SystemStatus status{SystemStatus::Sys_Unknown};
 };
 
@@ -74,7 +75,7 @@ inline void toJson(cJSON *json, const SystemEventChanged &msg) {
     cJSON_AddStringToObject(json, "status", status.data());
 }
 
-struct Telemetry : TEvent<SysEvtId_Telemetry, Sys_Core> {
+struct Telemetry : TMessage<SysEvtId_Telemetry, Sys_Core> {
     size_t freeHeap{};
     double usedMemPercent{};
     size_t stackWatermark{};

@@ -51,72 +51,72 @@ enum BTMessageId {
     BT_MsgId_Command,
 };
 
-struct BTGapDiscoveryRequest : TEvent<BT_MsgId_BleDiscoveryRequest, SysLib_BT> {
+struct BTGapDiscoveryRequest : TMessage<BT_MsgId_BleDiscoveryRequest, SysLib_BT> {
 
 };
 
-struct BTGapDiscoveryStart : TEvent<BT_MsgId_BleDiscoveryStart, SysLib_BT> {
+struct BTGapDiscoveryStart : TMessage<BT_MsgId_BleDiscoveryStart, SysLib_BT> {
 
 };
 
-struct BTGapDeviceInfo : TEvent<BT_MsgId_DiscoveryDevInfo, SysLib_BT> {
+struct BTGapDeviceInfo : TMessage<BT_MsgId_DiscoveryDevInfo, SysLib_BT> {
     char bdAddr[18]{0};
     char name[ESP_BT_GAP_MAX_BDNAME_LEN]{0};
     uint32_t cod{0};
     uint8_t rssi{0};
 };
 
-struct BTGapDiscoveryDone : TEvent<BT_MsgId_DiscoveryDone, SysLib_BT> {
+struct BTGapDiscoveryDone : TMessage<BT_MsgId_DiscoveryDone, SysLib_BT> {
 
 };
 
-struct BleDiscoveryRequest : TEvent<BT_MsgId_DiscoveryRequest, SysLib_BT> {
+struct BleDiscoveryRequest : TMessage<BT_MsgId_DiscoveryRequest, SysLib_BT> {
 
 };
 
-struct BleDiscoveryStart : TEvent<BT_MsgId_DiscoveryStart, SysLib_BT> {
+struct BleDiscoveryStart : TMessage<BT_MsgId_DiscoveryStart, SysLib_BT> {
 
 };
 
 
-struct BTHidConnRequest : TEvent<BT_MsgId_HidConnRequest, SysLib_BT> {
+struct BTHidConnRequest : TMessage<BT_MsgId_HidConnRequest, SysLib_BT> {
     char bdAddr[18]{0};
     esp_hid_transport_t transport{ESP_HID_TRANSPORT_BT};
     esp_ble_addr_type_t addrType{BLE_ADDR_TYPE_PUBLIC};
 };
 
-struct BTHidConnected : TEvent<BT_MsgId_HidConnected, SysLib_BT> {
+struct BTHidConnected : TMessage<BT_MsgId_HidConnected, SysLib_BT> {
     char bdAddr[18]{0};
     esp_hidh_dev_t* dev{};
 };
 
-struct BTHidInput : TEvent<BT_MsgId_HidInput, SysLib_BT> {
+struct BTHidInput : TMessage<BT_MsgId_HidInput, SysLib_BT> {
     char bdAddr[18]{0};
     esp_hidh_dev_t* dev{};
     esp_hid_usage_t usage{};
     char data[10]{};
 };
 
-struct BTHidDisconnected : TEvent<BT_MsgId_HidDisconnected, SysLib_BT> {
+struct BTHidDisconnected : TMessage<BT_MsgId_HidDisconnected, SysLib_BT> {
     char bdAddr[18]{0};
     esp_hidh_dev_t* dev{};
 };
 
-struct BTSppConnRequest : TEvent<BT_MsgId_SppConnRequest, SysLib_BT> {
+struct BTSppConnRequest : TMessage<BT_MsgId_SppConnRequest, SysLib_BT> {
     char bdAddr[18]{0};
 };
 
-struct BTSppConnected : TEvent<BT_MsgId_SppConnected, SysLib_BT> {
+struct BTSppConnected : TMessage<BT_MsgId_SppConnected, SysLib_BT> {
     char bdAddr[18]{0};
     uint32_t handle;
 };
 
-struct BTSppInput : TEvent<BT_MsgId_SppInput, SysLib_BT> {
+struct BTSppInput : TMessage<BT_MsgId_SppInput, SysLib_BT> {
     uint32_t handle{0};
     char data[32]{0};
 };
 
-struct BTSppDisconnected : TEvent<BT_MsgId_SppDisconnected, SysLib_BT> {
+struct BTSppDisconnected : TMessage<BT_MsgId_SppDisconnected, SysLib_BT> {
     uint32_t handle;
 };
 
@@ -140,7 +140,7 @@ enum BTSubCommand {
 };
 
 template<BTSubCommand subCmd>
-struct BTCommand : TEvent<BT_MsgId_Command, SysLib_BT, subCmd> {
+struct BTCommand : TMessage<BT_MsgId_Command, SysLib_BT, subCmd> {
 
 };
 

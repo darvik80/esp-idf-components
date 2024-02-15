@@ -5,6 +5,7 @@
 #if defined(CONFIG_ESP32_WIFI_ENABLED)
 #include <esp_wifi.h>
 #endif
+
 #include "TelemetryService.h"
 
 #include <esp_heap_caps.h>
@@ -13,7 +14,7 @@
 #include <esp_wifi.h>
 #endif
 
-TelemetryService::TelemetryService(Registry&registry) : TService(registry) {
+TelemetryService::TelemetryService(Registry &registry) : TService(registry) {
     _timer.fire<SysTid_Telemetry>(10000, true);
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
@@ -23,14 +24,14 @@ TelemetryService::TelemetryService(Registry&registry) : TService(registry) {
 #endif
 }
 
-void TelemetryService::onEvent(const TimerEvent<SysTid_Telemetry>&msg) {
+void TelemetryService::handle(const TimerEvent<SysTid_Telemetry> &msg) {
     const size_t freeHeap = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
     const size_t totalHeap = heap_caps_get_total_size(MALLOC_CAP_DEFAULT);
 
     Telemetry telemetry{
-        .freeHeap = freeHeap,
-        .usedMemPercent = ((double)(totalHeap - freeHeap) / (double)totalHeap) * 100,
-        .stackWatermark = uxTaskGetStackHighWaterMark(nullptr),
+            .freeHeap = freeHeap,
+            .usedMemPercent = ((double) (totalHeap - freeHeap) / (double) totalHeap) * 100,
+            .stackWatermark = uxTaskGetStackHighWaterMark(nullptr),
     };
 #ifdef  CONFIG_ESP32_WIFI_ENABLED
     esp_wifi_sta_get_rssi(&telemetry.wifiRssi);

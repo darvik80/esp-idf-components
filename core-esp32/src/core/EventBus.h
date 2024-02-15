@@ -6,278 +6,99 @@
 
 #include <cstdint>
 #include <type_traits>
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
-#include <esp_log.h>
-
 #include <vector>
 #include <functional>
 #include <cstring>
 #include <memory>
-#include <esp_check.h>
-#include <esp_event.h>
 #include <list>
 #include <string>
 #include <string_view>
+
 #include "Logger.h"
 
-#include <system_error>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/task.h>
+#include <freertos/timers.h>
 
-enum class bus_error {
-    ok = 0,
-    fail,
-    invalid_state,
-    invalid_arguments,
-    out_of_memory,
-    timeout,
-};
+#if defined (CONFIG_IDF_TARGET)
 
-enum class bus_condition {
-    success,
-    fail,
-};
+#include <esp_check.h>
+#include <esp_event.h>
+#include <esp_log.h>
 
-namespace std {
-    template<>
-    struct is_error_code_enum<bus_error> : true_type {
-    };
-    template<>
-    struct is_error_condition_enum<bus_condition> : true_type {
-    };
-}
+#endif
 
-std::error_code make_error_code(bus_error);
+#define DEF_MSG_ID(id, sysId, params) ((uint32_t)id | (((uint32_t)sysId & 0xFF) << 8) | (((uint32_t)params & 0xFF) << 16))
 
-std::error_code make_error_code(esp_err_t e);
+typedef uint32_t MessageId;
 
-inline std::error_condition make_error_condition(bus_condition cond) noexcept;
-
-#define DEF_MSG_ID(id, sysId, params) (id | (((uint16_t)sysId & 0x03) << 8) | ((uint16_t)params << 10))
-
-struct Event {
+struct SMessage {
 };
 
 template<uint8_t eventId, uint8_t sysId, uint8_t bits = 0>
-struct TEvent : Event {
+struct TMessage : SMessage {
     enum {
         ID = DEF_MSG_ID(eventId, sysId, bits)
     };
 };
 
-class EventSubscriber {
-public:
-    typedef std::shared_ptr<EventSubscriber> Ptr;
+struct IMessage {
+    [[nodiscard]] virtual MessageId id() const = 0;
 
-    virtual void onEventHandle(uint16_t id, const Event &msg) = 0;
-
-    virtual ~EventSubscriber() = default;
+    virtual ~IMessage() = default;
 };
 
-template<typename T, typename Evt1 = void, typename Evt2 = void, typename Evt3 = void, typename Evt4 = void, typename Evt5 = void, typename Evt6 = void, typename Evt7 = void, typename Evt8 = void>
-class TEventSubscriber : public EventSubscriber {
-public:
-    void onEventHandle(uint16_t id, const Event &event) override {
-        switch (id) {
-            case Evt1::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt1 &>(event));
-                break;
-            case Evt2::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt2 &>(event));
-                break;
-            case Evt3::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt3 &>(event));
-                break;
-            case Evt4::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt4 &>(event));
-                break;
-            case Evt5::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt5 &>(event));
-                break;
-            case Evt6::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt6 &>(event));
-                break;
-            case Evt7::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt7 &>(event));
-                break;
-            case Evt8::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt8 &>(event));
-                break;
-            default:
-                break;
-        }
+template<uint8_t eventId, uint8_t sysId, uint8_t bits = 0>
+struct CMessage : IMessage {
+    enum {
+        ID = DEF_MSG_ID(eventId, sysId, bits)
+    };
+
+    [[nodiscard]] MessageId id() const {
+        return ID;
     }
 };
 
-template<typename T, typename Evt1, typename Evt2, typename Evt3, typename Evt4, typename Evt5, typename Evt6, typename Evt7>
-class TEventSubscriber<T, Evt1, Evt2, Evt3, Evt4, Evt5, Evt6, Evt7> : public EventSubscriber {
+class MessageSubscriber {
 public:
-    void onEventHandle(uint16_t id, const Event &event) override {
-        switch (id) {
-            case Evt1::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt1 &>(event));
-                break;
-            case Evt2::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt2 &>(event));
-                break;
-            case Evt3::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt3 &>(event));
-                break;
-            case Evt4::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt4 &>(event));
-                break;
-            case Evt5::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt5 &>(event));
-                break;
-            case Evt6::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt6 &>(event));
-                break;
-            case Evt7::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt7 &>(event));
-                break;
-            default:
-                break;
-        }
-    }
+    typedef std::shared_ptr<MessageSubscriber> Ptr;
+
+    virtual void onMessage(MessageId msgId, const void *msg) = 0;
+
+    virtual ~MessageSubscriber() = default;
 };
 
-template<typename T, typename Evt1, typename Evt2, typename Evt3, typename Evt4, typename Evt5, typename Evt6>
-class TEventSubscriber<T, Evt1, Evt2, Evt3, Evt4, Evt5, Evt6> : public EventSubscriber {
-public:
-    void onEventHandle(uint16_t id, const Event &event) override {
-        switch (id) {
-            case Evt1::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt1 &>(event));
-                break;
-            case Evt2::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt2 &>(event));
-                break;
-            case Evt3::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt3 &>(event));
-                break;
-            case Evt4::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt4 &>(event));
-                break;
-            case Evt5::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt5 &>(event));
-                break;
-            case Evt6::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt6 &>(event));
-                break;
-            default:
-                break;
+template<typename T, typename ...Msgs>
+class TMessageSubscriber : public MessageSubscriber {
+private:
+    template<typename Msg>
+    bool onMessage(MessageId msgId, const void *msg) {
+        if (Msg::ID == msgId) {
+            static_cast<T *>(this)->handle(*(reinterpret_cast<const Msg *>(msg)));
+            return true;
         }
-    }
-};
 
-template<typename T, typename Evt1, typename Evt2, typename Evt3, typename Evt4, typename Evt5>
-class TEventSubscriber<T, Evt1, Evt2, Evt3, Evt4, Evt5> : public EventSubscriber {
-public:
-    void onEventHandle(uint16_t id, const Event &event) override {
-        switch (id) {
-            case Evt1::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt1 &>(event));
-                break;
-            case Evt2::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt2 &>(event));
-                break;
-            case Evt3::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt3 &>(event));
-                break;
-            case Evt4::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt4 &>(event));
-                break;
-            case Evt5::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt5 &>(event));
-                break;
-            default:
-                break;
-        }
+        return false;
     }
-};
 
-template<typename T, typename Evt1, typename Evt2, typename Evt3, typename Evt4>
-class TEventSubscriber<T, Evt1, Evt2, Evt3, Evt4> : public EventSubscriber {
 public:
-    void onEventHandle(uint16_t id, const Event &event) override {
-        switch (id) {
-            case Evt1::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt1 &>(event));
-                break;
-            case Evt2::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt2 &>(event));
-                break;
-            case Evt3::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt3 &>(event));
-                break;
-            case Evt4::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt4 &>(event));
-                break;
-            default:
-                break;
-        }
-    }
-};
-
-template<typename T, typename Evt1, typename Evt2, typename Evt3>
-class TEventSubscriber<T, Evt1, Evt2, Evt3> : public EventSubscriber {
-public:
-    void onEventHandle(uint16_t id, const Event &event) override {
-        switch (id) {
-            case Evt1::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt1 &>(event));
-                break;
-            case Evt2::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt2 &>(event));
-                break;
-            case Evt3::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt3 &>(event));
-                break;
-            default:
-                break;
-        }
-    }
-};
-
-template<typename T, typename Evt1, typename Evt2>
-class TEventSubscriber<T, Evt1, Evt2> : public EventSubscriber {
-public:
-    void onEventHandle(uint16_t id, const Event &event) override {
-        switch (id) {
-            case Evt1::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt1 &>(event));
-                break;
-            case Evt2::ID:
-                static_cast<T *>(this)->onEvent(static_cast<const Evt2 &>(event));
-                break;
-            default:
-                break;
-        }
-    }
-};
-
-template<typename T, typename Evt1>
-class TEventSubscriber<T, Evt1> : public EventSubscriber {
-public:
-    void onEventHandle(uint16_t id, const Event &event) override {
-        if (id == Evt1::ID) {
-            static_cast<T *>(this)->onEvent(static_cast<const Evt1 &>(event));
-        }
+    void onMessage(MessageId msgId, const void *msg) override {
+        (onMessage<Msgs>(msgId, msg) || ...);
     }
 };
 
 template<typename T>
-class TFuncEventSubscriber : public TEventSubscriber<TFuncEventSubscriber<T>, T> {
+class TFuncMessageSubscriber : public TMessageSubscriber<TFuncMessageSubscriber<T>, T> {
     std::function<void(const T &msg)> _callback;
 public:
-    explicit TFuncEventSubscriber(const std::function<void(const T &)> &callback)
+    explicit TFuncMessageSubscriber(const std::function<void(const T &)> &callback)
             : _callback(callback) {}
 
-    void onEvent(const T &msg) {
+    void onMessage(const T &msg) {
         _callback(msg);
     }
 };
-
-ESP_EVENT_DECLARE_BASE(CORE_EVENT);
 
 struct BusOptions {
     bool useSystemQueue{false};
@@ -287,51 +108,45 @@ struct BusOptions {
     std::string name;
 };
 
-typedef std::function<void(BusOptions &options)> BusOption;
-
-BusOption withSystemQueue(bool useSystemQueue);
-
-BusOption withQueueSize(int32_t queueSize);
-
-BusOption withStackSize(size_t stackSize);
-
-BusOption withPrioritySize(size_t priority);
-
-BusOption withName(std::string_view name);
-
 class EventBus {
-    std::list<EventSubscriber::Ptr> _subscribers;
+    std::list<MessageSubscriber::Ptr> _subscribers;
+
 protected:
-    void doEvent(uint16_t id, Event &msg) {
+    void handleMessage(MessageId id, const void *msg) {
         for (const auto &sub: _subscribers) {
-            sub->onEventHandle(id, msg);
+            sub->onMessage(id, msg);
         }
     }
 
 public:
     template<typename T>
     void subscribe(std::function<void(const T &msg)> callback) {
-        _subscribers.push_back(std::make_shared<TFuncEventSubscriber<T>>(callback));
+        _subscribers.push_back(std::make_shared<TFuncMessageSubscriber<T>>(callback));
     }
 
-    void subscribe(const EventSubscriber::Ptr &subscriber) {
+    void subscribe(const MessageSubscriber::Ptr &subscriber) {
         _subscribers.push_back(subscriber);
+    }
+
+    void unsubscribe(const MessageSubscriber::Ptr &subscriber) {
+        _subscribers.remove(subscriber);
     }
 };
 
 template<size_t itemSize = 32>
 class FreeRTOSEventBus : public EventBus {
     struct Item {
-        uint16_t eventId{0};
+        MessageId messageId{0};
         union {
-            uint16_t all;
+            uint8_t all;
             struct {
                 bool pointer: 1;
+                bool trivial: true;
             };
         } flags{};
         union { ;
             uint8_t data[itemSize]{0};
-            Event *ptr;
+            void *ptr;
         } payload{};
     };
 
@@ -347,24 +162,32 @@ private:
         Item item;
         while (xQueueReceive(_queue, &item, portMAX_DELAY)) {
             if (item.flags.pointer) {
-                esp_logd(bus, "recv pointer 0x%04x", item.eventId);
-                doEvent(item.eventId, *item.payload.ptr);
-                delete item.payload.ptr;
+                esp_logd(bus, "recv pointer 0x%04x", item.messageId);
+                handleMessage(item.messageId, item.payload.ptr);
+                if (item.flags.trivial) {
+                    free(item.payload.ptr);
+                } else {
+                    delete reinterpret_cast<IMessage *>(item.payload.ptr);
+                }
             } else {
-                esp_logd(bus, "recv copyable 0x%04x", item.eventId);
-                doEvent(item.eventId, (Event &) item.payload);
+                esp_logd(bus, "recv copyable 0x%04x", item.messageId);
+                handleMessage(item.messageId, &item.payload.data);
             }
         }
     }
 
-public:
-    FreeRTOSEventBus(std::initializer_list<BusOption> opts) {
-        BusOptions options;
-        for (const auto &opt: opts) {
-            opt(options);
+    static uint8_t *duplicate(const uint8_t *ptr, size_t size) {
+        auto *res = (uint8_t *) malloc(size);
+        if (res) {
+            memcpy(res, ptr, size);
         }
+        return res;
+    }
 
-        esp_logi(bus, "create freertos queue: " LOG_COLOR_I "%s" LOG_RESET_COLOR ", size: %" PRIi32 ", item-size: %zu", options.name.c_str(), options.queueSize, itemSize);
+public:
+    explicit FreeRTOSEventBus(const BusOptions &options) {
+        esp_logi(bus, "create freertos queue: " LOG_COLOR_I "%s" LOG_RESET_COLOR ", size: %" PRIi32 ", item-size: %zu",
+                 options.name.c_str(), options.queueSize, itemSize);
         _queue = xQueueCreate(options.queueSize, sizeof(Item));
 
         auto res = xTaskCreate(
@@ -376,48 +199,42 @@ public:
                 &_task
         );
 
-        std_error_check(res == pdPASS ? bus_error::ok : bus_error::invalid_arguments);
+        ESP_ERROR_CHECK(res == pdPASS ? ESP_OK : ESP_ERR_INVALID_ARG);
     }
 
     template<typename T, std::enable_if_t<sizeof(T) <= itemSize && std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code post(const T &msg) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
-        Item item{.eventId = T::ID, .flags {.pointer = false}};
+    bool post(const T &msg) {
+        static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from Event");
+        Item item{.messageId = T::ID, .flags {.pointer = false}};
         memcpy(item.payload.data, &msg, sizeof(T));
-        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE ? bus_error::ok : bus_error::fail;
+        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
     }
 
     template<typename T, std::enable_if_t<(sizeof(T) > itemSize) && std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code post(const T &msg) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
-        Item item{.eventId = T::ID, .flags {.pointer = true}, .payload {.ptr = new T(msg)}};
-        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE ? bus_error::ok : bus_error::fail;
+    bool post(const T &msg) {
+        static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from trivial message");
+        Item item{.messageId = T::ID, .flags {.pointer = true}, .payload {.ptr = duplicate(msg, sizeof(T))}};
+        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
     }
 
-    template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code send(T &msg) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
+    template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
+    bool post(const T &msg) {
+        static_assert((std::is_base_of<IMessage, T>::value), "Msg is not derived from not trivial message");
+        Item item{.messageId = T::ID, .flags {.pointer = true, .trivial = false}, .payload {.ptr = new T(msg)}};
+        return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
+    }
+
+    template<typename T>
+    bool send(const T &msg) {
+        static_assert((std::is_base_of<SMessage, T>::value || std::is_base_of<IMessage, T>::value),
+                      "Msg is not derived from message");
         if (strcmp(pcTaskGetName(nullptr), pcTaskGetName(_task)) != 0) {
             esp_loge(bus, "can't send - incorrect task: 0x%04x, task: '%s'", T::ID, pcTaskGetName(nullptr));
-            return bus_error::invalid_arguments;
+            return false;
         }
 
-        doEvent(T::ID, msg);
-        return bus_error::ok;
-    }
-
-    template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code post(const T &msg) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
-        esp_loge(bus, "can't post - non-copyable msg: 0x%04x", T::ID);
-        return bus_error::invalid_arguments;
-    }
-
-    template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code send(T &msg) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
-        esp_loge(bus, "can't send - non-copyable msg: 0x%04x", T::ID);
-        return bus_error::invalid_arguments;
+        handleMessage(T::ID, &msg);
+        return true;
     }
 
     ~FreeRTOSEventBus() {
@@ -428,23 +245,23 @@ public:
     }
 };
 
+#if defined (CONFIG_IDF_TARGET)
+
+ESP_EVENT_DECLARE_BASE(CORE_EVENT);
+
 class EspEventBus : public EventBus {
     std::string _task;
     esp_event_loop_handle_t _eventLoop{};
 private:
     static void eventLoop(void *handler_arg, esp_event_base_t base, int32_t id, void *event_data) {
         auto self = (EspEventBus *) handler_arg;
-        self->doEvent(id, *(Event *) event_data);
+        self->handleMessage((uint32_t) id, event_data);
     }
 
 public:
-    EspEventBus(std::initializer_list<BusOption> opts) {
-        BusOptions options;
-        for (const auto &opt: opts) {
-            opt(options);
-        }
-
-        esp_logi(bus, "create esp-event-bus: " LOG_COLOR_I "%s" LOG_RESET_COLOR ", size: %" PRIi32 "", options.name.c_str(), options.queueSize);
+    explicit EspEventBus(const BusOptions &options) {
+        esp_logi(bus, "create esp-event-bus: " LOG_COLOR_I "%s" LOG_RESET_COLOR ", size: %" PRIi32 "",
+                 options.name.c_str(), options.queueSize);
         _task = options.name;
         if (options.useSystemQueue) {
             esp_event_loop_create_default();
@@ -458,41 +275,35 @@ public:
                     .task_core_id = 0
             };
 
-            std_error_check(make_error_code(esp_event_loop_create(&loop_args, &_eventLoop)));
-            std_error_check(make_error_code(esp_event_handler_register_with(_eventLoop, CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this)));
+            ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &_eventLoop));
+            ESP_ERROR_CHECK(esp_event_handler_register_with(_eventLoop, CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this));
         }
     }
 
     template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code post(const T &msg) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
-        return make_error_code(esp_event_post(CORE_EVENT, T::ID, &msg, sizeof(T), portMAX_DELAY));
-    }
-
-    template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code send(T &msg) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
-        if (_task == pcTaskGetName(nullptr)) {
-            esp_loge(bus, "can't send - incorrect task: 0x%04x, task: '%s'", T::ID, pcTaskGetName(nullptr));
-            return bus_error::invalid_arguments;
-        }
-
-        doEvent(T::ID, msg);
-        return bus_error::ok;
+    bool post(const T &msg) {
+        static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from trivial message");
+        return ESP_OK == esp_event_post(CORE_EVENT, T::ID, &msg, sizeof(T), portMAX_DELAY);
     }
 
     template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code post(const T &) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
+    bool post(const T &) {
+        static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from trivial message");
         esp_loge(bus, "can't post - non-copyable msg: 0x%04x", T::ID);
-        return bus_error::invalid_arguments;
+        return false;
     }
 
-    template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    std::error_code send(T &) {
-        static_assert((std::is_base_of<Event, T>::value), "Msg is not derived from Event");
-        esp_loge(bus, "can't send - non-copyable msg: 0x%04x", T::ID);
-        return bus_error::invalid_arguments;
+    template<typename T>
+    bool send(const T &msg) {
+        static_assert((std::is_base_of<SMessage, T>::value || std::is_base_of<IMessage, T>::value),
+                      "Msg is not derived from message");
+        if (_task != pcTaskGetName(nullptr)) {
+            esp_loge(bus, "can't send - incorrect task: 0x%04x, task: '%s'", T::ID, pcTaskGetName(nullptr));
+            return false;
+        }
+
+        handleMessage(T::ID, &msg);
+        return true;
     }
 };
 
@@ -520,24 +331,19 @@ private:
         T item;
         while (xMessageBufferReceive(_handler, sizeof(T), &item, portMAX_DELAY) == sizeof(T)) {
             if (item.flags.pointer) {
-                esp_logd(bus, "recv pointer 0x%04x", item.eventId);
-                doEvent(item.eventId, *item.payload.ptr);
+                esp_logd(bus, "recv pointer 0x%04x", item.messageId);
+                doEvent(item.messageId, *item.payload.ptr);
                 delete item.payload.ptr;
             } else {
-                esp_logd(bus, "recv copyable 0x%04x", item.eventId);
-                doEvent(item.eventId, (Event &) item.payload);
+                esp_logd(bus, "recv copyable 0x%04x", item.messageId);
+                doEvent(item.messageId, (SMessage &) item.payload);
             }
         }
     }
 
 public:
-    FreeRTOSMessageBus(std::initializer_list<BusOption> opts) {
-        BusOptions options;
-        for (const auto &opt: opts) {
-            opt(options);
-        }
-
-        _handler = xMessageBufferCreate(sizeof(T));
+    explicit FreeRTOSMessageBus(const BusOptions &options) {
+        _handler = xMessageBufferCreate(sizeof(T) * options.queueSize);
 
         auto res = xTaskCreate(
                 task,
@@ -548,12 +354,11 @@ public:
                 &_task
         );
 
-        std_error_check(res == pdPASS ? bus_error::ok : bus_error::invalid_arguments);
-
+        ESP_ERROR_CHECK(res == pdPASS ? ESP_OK : ESP_ERR_INVALID_ARG);
     }
 
-    std::error_code post(const T &msg, TickType_t ticksWait) {
-        return xMessageBufferSend(_handler, &msg, sizeof(T), ticksWait) == sizeof(T) ?  bus_error::ok :  bus_error::timeout;
+    bool post(const T &msg, TickType_t ticksWait) {
+        return pdPASS == xMessageBufferSend(_handler, &msg, sizeof(T), ticksWait) == sizeof(T);
     }
 
     ~FreeRTOSMessageBus() {
@@ -563,3 +368,5 @@ public:
         }
     }
 };
+
+#endif
