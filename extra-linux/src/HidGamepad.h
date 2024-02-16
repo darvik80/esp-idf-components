@@ -8,7 +8,6 @@
 #include "UserService.h"
 #include <hidapi/hidapi.h>
 #include "HidGamepadProperties.h"
-#include <core/v2/FreeRTOSCpp.h>
 
 class HidGamepad : public TService<HidGamepad, Service_User_LinuxHidGamepad, Sys_User>
         , public TPropertiesConsumer<HidGamepad, HidGamepadProperties> {
