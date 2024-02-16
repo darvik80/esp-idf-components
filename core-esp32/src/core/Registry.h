@@ -93,7 +93,7 @@ public:
     };
 
     [[nodiscard]] ServiceId getServiceId() const override {
-        return Id | (((uint16_t) systemId) << 8);
+        return ID;
     }
 
     Registry &getRegistry() override {
