@@ -84,18 +84,18 @@ struct HidDeviceInfo {
 
 class BTHidDevice
         : public TService<BTHidDevice, Service_Lib_BTHidScanner, SysLib_BT>,
-          public TEventSubscriber<BTHidDevice, BTHidConnRequest, BTHidConnected, BTHidDisconnected, BTHidInput> {
+          public TMessageSubscriber<BTHidDevice, BTHidConnRequest, BTHidConnected, BTHidDisconnected, BTHidInput> {
     std::unordered_map<std::string, HidDeviceInfo> _devices;
 public:
     explicit BTHidDevice(Registry &registry);
 
     void setup() override;
 
-    void onEvent(const BTHidConnRequest &msg);
+    void handle(const BTHidConnRequest &msg);
 
-    void onEvent(const BTHidConnected &msg);
+    void handle(const BTHidConnected &msg);
 
-    void onEvent(const BTHidDisconnected &msg);
+    void handle(const BTHidDisconnected &msg);
 
-    void onEvent(const BTHidInput &msg);
+    void handle(const BTHidInput &msg);
 };

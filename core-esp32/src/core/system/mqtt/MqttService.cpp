@@ -214,7 +214,7 @@ void MqttService::destroyConnection() {
     }
 }
 
-void MqttService::onEvent(const SystemEventChanged &msg) {
+void MqttService::handle(const SystemEventChanged &msg) {
       switch (msg.status) {
         case SystemStatus::Wifi_Connected:
             _state = S_Wifi_Connected;

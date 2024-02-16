@@ -33,7 +33,7 @@ struct mqtt_sub_info {
 class MqttService
         : public TService<MqttService, Service_Sys_Mqtt, Sys_Core>,
           public TPropertiesConsumer<MqttService, MqttProperties>,
-          public TEventSubscriber<MqttService, SystemEventChanged> {
+          public TMessageSubscriber<MqttService, SystemEventChanged> {
 
     EventGroupHandle_t _eventGroup;
     esp_mqtt_client_handle_t _client{nullptr};
@@ -76,7 +76,7 @@ private:
 public:
     explicit MqttService(Registry &registry);
 
-    void onEvent(const SystemEventChanged &msg);
+    void handle(const SystemEventChanged &msg);
 
     void apply(const MqttProperties &props);
 

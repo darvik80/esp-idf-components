@@ -95,7 +95,7 @@ public:
     explicit TFuncMessageSubscriber(const std::function<void(const T &)> &callback)
             : _callback(callback) {}
 
-    void onMessage(const T &msg) {
+    void handle(const T &msg) {
         _callback(msg);
     }
 };
@@ -162,7 +162,7 @@ private:
         Item item;
         while (xQueueReceive(_queue, &item, portMAX_DELAY)) {
             if (item.flags.pointer) {
-                esp_logd(bus, "recv pointer 0x%04x", item.messageId);
+                esp_logd(bus, "recv pointer 0x%04" PRIxLEAST32, item.messageId);
                 handleMessage(item.messageId, item.payload.ptr);
                 if (item.flags.trivial) {
                     free(item.payload.ptr);
@@ -170,13 +170,13 @@ private:
                     delete reinterpret_cast<IMessage *>(item.payload.ptr);
                 }
             } else {
-                esp_logd(bus, "recv copyable 0x%04x", item.messageId);
+                esp_logd(bus, "recv copyable 0x%04" PRIxLEAST32, item.messageId);
                 handleMessage(item.messageId, &item.payload.data);
             }
         }
     }
 
-    static uint8_t *duplicate(const uint8_t *ptr, size_t size) {
+    static inline void *duplicate(const void *ptr, size_t size) {
         auto *res = (uint8_t *) malloc(size);
         if (res) {
             memcpy(res, ptr, size);
@@ -205,7 +205,10 @@ public:
     template<typename T, std::enable_if_t<sizeof(T) <= itemSize && std::is_trivially_copyable<T>::value, bool> = true>
     bool post(const T &msg) {
         static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from Event");
-        Item item{.messageId = T::ID, .flags {.pointer = false}};
+        Item item{
+                .messageId = T::ID,
+                .flags {.pointer = false, .trivial = true}
+        };
         memcpy(item.payload.data, &msg, sizeof(T));
         return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
     }
@@ -213,14 +216,22 @@ public:
     template<typename T, std::enable_if_t<(sizeof(T) > itemSize) && std::is_trivially_copyable<T>::value, bool> = true>
     bool post(const T &msg) {
         static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from trivial message");
-        Item item{.messageId = T::ID, .flags {.pointer = true}, .payload {.ptr = duplicate(msg, sizeof(T))}};
+        Item item{
+                .messageId = T::ID,
+                .flags {.pointer = true, .trivial = true},
+                .payload {.ptr = duplicate(&msg, sizeof(T))}
+        };
         return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
     }
 
     template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
     bool post(const T &msg) {
         static_assert((std::is_base_of<IMessage, T>::value), "Msg is not derived from not trivial message");
-        Item item{.messageId = T::ID, .flags {.pointer = true, .trivial = false}, .payload {.ptr = new T(msg)}};
+        Item item{
+                .messageId = T::ID,
+                .flags {.pointer = true, .trivial = false},
+                .payload {.ptr = new T(msg)}
+        };
         return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
     }
 

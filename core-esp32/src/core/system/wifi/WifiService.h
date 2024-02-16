@@ -16,7 +16,7 @@
 class WifiService
         : public TService<WifiService, Service_Sys_Wifi, Sys_Core>,
           public TPropertiesConsumer<WifiService, WifiProperties>,
-          public TEventSubscriber<WifiService, SystemEventChanged, Command> {
+          public TMessageSubscriber<WifiService, SystemEventChanged, Command> {
     WifiProperties _props;
 
     esp_netif_t* _netif{nullptr};
@@ -31,9 +31,9 @@ private:
 public:
     explicit WifiService(Registry &registry);
 
-    void onEvent(const SystemEventChanged &msg);
+    void handle(const SystemEventChanged &msg);
 
-    void onEvent(const Command &cmd);
+    void handle(const Command &cmd);
 
     void apply(const WifiProperties &props);
 };

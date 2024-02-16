@@ -120,7 +120,7 @@ struct BTSppDisconnected : TMessage<BT_MsgId_SppDisconnected, SysLib_BT> {
     uint32_t handle;
 };
 
-struct BTScanner : public TEvent<BT_MsgId_Scanner, SysLib_BT> {
+struct BTScanner : public TMessage<BT_MsgId_Scanner, SysLib_BT> {
     char bdAddr[18]{};
     char barcode[64]{};
 };

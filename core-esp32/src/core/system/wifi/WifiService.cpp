@@ -28,7 +28,7 @@ void WifiService::eventHandler(esp_event_base_t event_base, int32_t event_id, vo
     }
 }
 
-void WifiService::onEvent(const Command &cmd) {
+void WifiService::handle(const Command &cmd) {
     if (strcmp(cmd.cmd, "wifi") == 0) {
         if (strcmp(cmd.params, "scan") == 0) {
             esp_wifi_disconnect();
@@ -47,7 +47,7 @@ void WifiService::onEvent(const Command &cmd) {
     }
 }
 
-void WifiService::onEvent(const SystemEventChanged &msg) {
+void WifiService::handle(const SystemEventChanged &msg) {
     if (msg.status == SystemStatus::Wifi_ScanDone) {
         uint16_t appsNumber{0};
         ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&appsNumber));

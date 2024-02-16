@@ -187,14 +187,14 @@ void BTHidDevice::setup() {
     ESP_ERROR_CHECK(esp_hidh_init(&config));
 }
 
-void BTHidDevice::onEvent(const BTHidConnRequest &msg) {
+void BTHidDevice::handle(const BTHidConnRequest &msg) {
     esp_logi(hid, "dev: [%s] req conn", msg.bdAddr);
     esp_bd_addr_t bda;
     BTUtils::str2bda(msg.bdAddr, bda);
     esp_hidh_dev_open(bda, msg.transport, msg.addrType);
 }
 
-void BTHidDevice::onEvent(const BTHidConnected &msg) {
+void BTHidDevice::handle(const BTHidConnected &msg) {
     esp_logi(hid, "dev: [%s] connected", msg.bdAddr);
 
     _devices.emplace(msg.bdAddr, HidDeviceInfo{
@@ -203,7 +203,7 @@ void BTHidDevice::onEvent(const BTHidConnected &msg) {
     });
 }
 
-void BTHidDevice::onEvent(const BTHidDisconnected &msg) {
+void BTHidDevice::handle(const BTHidDisconnected &msg) {
     esp_logi(hid, "dev: [%s] disconnected", msg.bdAddr);
     if (auto it = _devices.find(msg.bdAddr); it != _devices.end()) {
         esp_hidh_dev_free(it->second.dev);
@@ -211,7 +211,7 @@ void BTHidDevice::onEvent(const BTHidDisconnected &msg) {
     }
 }
 
-void BTHidDevice::onEvent(const BTHidInput &msg) {
+void BTHidDevice::handle(const BTHidInput &msg) {
     if (auto it = _devices.find(msg.bdAddr); it != _devices.end()) {
         if (msg.usage == ESP_HID_USAGE_GENERIC || msg.usage == ESP_HID_USAGE_KEYBOARD) {
             it->second.cache.append(msg.data);

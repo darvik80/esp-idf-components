@@ -239,7 +239,7 @@ void BleDiscovery::setup() {
 
 #define SCAN_DURATION_SECONDS 5
 
-void BleDiscovery::onEvent(const BleDiscoveryRequest &msg) {
+void BleDiscovery::handle(const BleDiscoveryRequest &msg) {
     static esp_ble_scan_params_t hid_scan_params = {
             .scan_type              = BLE_SCAN_TYPE_ACTIVE,
             .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,

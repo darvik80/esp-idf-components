@@ -9,13 +9,13 @@
 #ifdef CONFIG_BT_BLE_ENABLED
 
 class BleDiscovery : public TService<BleDiscovery, Service_Lib_BleDiscovery, SysLib_BT>,
-                     public TEventSubscriber<BleDiscovery, BleDiscoveryRequest> {
+                     public TMessageSubscriber<BleDiscovery, BleDiscoveryRequest> {
 public:
     explicit BleDiscovery(Registry &registry) : TService(registry) {}
 
     void setup() override;
 
-    void onEvent(const BleDiscoveryRequest& msg);
+    void handle(const BleDiscoveryRequest& msg);
 };
 
 #endif
