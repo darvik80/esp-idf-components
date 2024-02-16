@@ -55,7 +55,7 @@ struct CMessage : IMessage {
         ID = DEF_MSG_ID(eventId, sysId, bits)
     };
 
-    [[nodiscard]] MessageId id() const {
+    [[nodiscard]] MessageId id() const override {
         return ID;
     }
 };
