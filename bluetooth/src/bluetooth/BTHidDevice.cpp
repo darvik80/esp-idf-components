@@ -50,7 +50,7 @@ char hidGetMap(HidModifiers modifiers, uint8_t code) {
 void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *event_data) {
     auto event = (esp_hidh_event_t) id;
     auto *param = (esp_hidh_event_data_t *) event_data;
-    static char lastInput[10];
+    static char lastInput[24];
 
     switch (event) {
         case ESP_HIDH_START_EVENT: {
@@ -85,6 +85,7 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
                     .usage = param->input.usage,
             };
             BTUtils::bda2str(bda, msg.bdAddr);
+
             if (ESP_HID_USAGE_KEYBOARD == param->input.usage) {
                 if (param->input.length == sizeof(HidKeyboard)) {
                     esp_logi(hid, "dev: [" ESP_BD_ADDR_STR "] input: keyboard", ESP_BD_ADDR_HEX(bda));
@@ -105,6 +106,18 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
                     auto *keyEvent = (HidGeneric *) param->input.data;
                     msg.data[0] = hidGetMap(keyEvent->modifiers, keyEvent->val);
                     getDefaultEventBus().post(msg);
+                } else if (param->input.length == 17) {
+                    if (memcmp(lastInput, param->input.data, param->input.length) != 0) {
+                        memcpy(lastInput, param->input.data, param->input.length);
+                        esp_logi(
+                                hid, "dev: [" ESP_BD_ADDR_STR "] input: %d, report: %d, mapIdx: %d",
+                                ESP_BD_ADDR_HEX(bda),
+                                (int)param->input.usage,
+                                (int) param->input.report_id,
+                                (int) param->input.map_index
+                        );
+                    }
+                    ESP_LOG_BUFFER_HEX("ble", param->input.data, param->input.length);
                 }
             } else if (ESP_HID_USAGE_GAMEPAD == param->input.usage) {
                 if (param->input.length == 10) {
@@ -120,6 +133,20 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
                         memcpy(msg.data, param->input.data, param->input.length);
                         getDefaultEventBus().post(msg);
                     }
+                }
+            } else {
+                if (param->input.length == 17) {
+                    if (memcmp(lastInput, param->input.data, param->input.length) != 0) {
+                        memcpy(lastInput, param->input.data, param->input.length);
+                        esp_logi(
+                                hid, "dev: [" ESP_BD_ADDR_STR "] input: %d, report: %d, mapIdx: %d",
+                                ESP_BD_ADDR_HEX(bda),
+                                (int)param->input.usage,
+                                (int) param->input.report_id,
+                                (int) param->input.map_index
+                        );
+                    }
+                    ESP_LOG_BUFFER_HEX("ble", param->input.data, param->input.length);
                 }
             }
 
