@@ -7,6 +7,7 @@
 
 #include "core/Logger.h"
 #include "core/EventBus.h"
+#include "core/MessageBus.h"
 #include "core/Properties.h"
 #include "core/Registry.h"
 #include "core/Timer.h"

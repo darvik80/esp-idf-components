@@ -103,7 +103,7 @@ public:
 struct BusOptions {
     bool useSystemQueue{false};
     int32_t queueSize{32};
-    uint32_t stackSize{4096};
+    uint32_t stackSize = configMINIMAL_STACK_SIZE;
     size_t priority{tskIDLE_PRIORITY};
     std::string name;
 };
@@ -204,7 +204,7 @@ public:
 
     template<typename T, std::enable_if_t<sizeof(T) <= itemSize && std::is_trivially_copyable<T>::value, bool> = true>
     bool post(const T &msg) {
-        static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from Event");
+        static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from trivial message");
         Item item{
                 .messageId = T::ID,
                 .flags {.pointer = false, .trivial = true}
@@ -273,11 +273,12 @@ public:
     explicit EspEventBus(const BusOptions &options) {
         esp_logi(bus, "create esp-event-bus: " LOG_COLOR_I "%s" LOG_RESET_COLOR ", size: %" PRIi32 "",
                  options.name.c_str(), options.queueSize);
-        _task = options.name;
         if (options.useSystemQueue) {
+            _task = "sys_evt";
             esp_event_loop_create_default();
             esp_event_handler_register(CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this);
         } else {
+            _task = options.name;
             esp_event_loop_args_t loop_args = {
                     .queue_size = options.queueSize,
                     .task_name = options.name.c_str(),
@@ -325,59 +326,5 @@ typedef EspEventBus DefaultEventBus;
 #endif
 
 DefaultEventBus &getDefaultEventBus();
-
-#include <freertos/message_buffer.h>
-
-template<typename T, std::enable_if_t<std::is_trivially_copyable<T>::value, bool> = true>
-class FreeRTOSMessageBus {
-    MessageBufferHandle_t _handler{nullptr};
-    TaskHandle_t _task{nullptr};
-private:
-    static void task(void *args) {
-        auto *self = static_cast<FreeRTOSMessageBus *>(args);
-        self->process();
-    }
-
-    void process() {
-        T item;
-        while (xMessageBufferReceive(_handler, sizeof(T), &item, portMAX_DELAY) == sizeof(T)) {
-            if (item.flags.pointer) {
-                esp_logd(bus, "recv pointer 0x%04x", item.messageId);
-                doEvent(item.messageId, *item.payload.ptr);
-                delete item.payload.ptr;
-            } else {
-                esp_logd(bus, "recv copyable 0x%04x", item.messageId);
-                doEvent(item.messageId, (SMessage &) item.payload);
-            }
-        }
-    }
-
-public:
-    explicit FreeRTOSMessageBus(const BusOptions &options) {
-        _handler = xMessageBufferCreate(sizeof(T) * options.queueSize);
-
-        auto res = xTaskCreate(
-                task,
-                options.name.data(),
-                options.stackSize,
-                this,
-                options.priority,
-                &_task
-        );
-
-        ESP_ERROR_CHECK(res == pdPASS ? ESP_OK : ESP_ERR_INVALID_ARG);
-    }
-
-    bool post(const T &msg, TickType_t ticksWait) {
-        return pdPASS == xMessageBufferSend(_handler, &msg, sizeof(T), ticksWait) == sizeof(T);
-    }
-
-    ~FreeRTOSMessageBus() {
-        vMessageBufferDelete(_handler);
-        if (_task) {
-            vTaskDelete(_task);
-        }
-    }
-};
 
 #endif

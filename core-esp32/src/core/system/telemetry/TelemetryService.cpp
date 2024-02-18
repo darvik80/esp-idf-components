@@ -38,13 +38,13 @@ void TelemetryService::handle(const TimerEvent<SysTid_Telemetry> &msg) {
 #endif
 
     esp_logi(mon, "telemetry:");
-    esp_logi(mon, "\tfree-heap: %zu", telemetry.freeHeap);
-    esp_logi(mon, "\tused-mem-percent: %f", telemetry.usedMemPercent);
-    esp_logi(mon, "\tstack-watermark: %zu", telemetry.stackWatermark);
+    esp_logi(mon, "\tfree-heap: "  LOG_COLOR(LOG_COLOR_GREEN) "%zu", telemetry.freeHeap);
+    esp_logi(mon, "\tused-mem-percent: " LOG_COLOR(LOG_COLOR_BLUE) " %f", telemetry.usedMemPercent);
+    esp_logi(mon, "\tstack-watermark: " LOG_COLOR(LOG_COLOR_BLUE) "%zu", telemetry.stackWatermark);
 #if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
     float temp;
     ESP_ERROR_CHECK(temperature_sensor_get_celsius(_temp_handle, &temp));
-    esp_logi(mon, "\ttemperature: %f °C", temp);
+    esp_logi(mon, "\ttemperature: " LOG_COLOR(LOG_COLOR_RED) "%f °C", temp);
     telemetry.temperature = temp;
 #endif
 

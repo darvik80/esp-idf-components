@@ -21,7 +21,6 @@ public:
     void fire(uint32_t milliseconds, bool repeat) {
         attach(milliseconds, repeat, []() {
             TimerEvent<tid> event;
-            esp_logi(t, "timer: %d:%d", event.TimerId, event.ID);
             getDefaultEventBus().post(event);
         });
     }
@@ -76,11 +75,7 @@ class FreeRTOSTimer : public Timer {
 private:
     static void onCallback(TimerHandle_t timer) {
         auto self = static_cast<FreeRTOSTimer *>( pvTimerGetTimerID(timer));
-        self->doCallback();
-    }
-
-    void doCallback() {
-        _callback();
+        self->_callback();
     }
 
 public:

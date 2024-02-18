@@ -106,47 +106,20 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
                     auto *keyEvent = (HidGeneric *) param->input.data;
                     msg.data[0] = hidGetMap(keyEvent->modifiers, keyEvent->val);
                     getDefaultEventBus().post(msg);
-                } else if (param->input.length == 17) {
-                    if (memcmp(lastInput, param->input.data, param->input.length) != 0) {
-                        memcpy(lastInput, param->input.data, param->input.length);
-                        esp_logi(
-                                hid, "dev: [" ESP_BD_ADDR_STR "] input: %d, report: %d, mapIdx: %d",
-                                ESP_BD_ADDR_HEX(bda),
-                                (int)param->input.usage,
-                                (int) param->input.report_id,
-                                (int) param->input.map_index
-                        );
-                    }
-                    ESP_LOG_BUFFER_HEX("ble", param->input.data, param->input.length);
                 }
             } else if (ESP_HID_USAGE_GAMEPAD == param->input.usage) {
                 if (param->input.length == 10) {
                     if (memcmp(lastInput, param->input.data, param->input.length) != 0) {
-                        esp_logi(
+                        esp_logd(
                                 hid, "dev: [" ESP_BD_ADDR_STR "] input: gamepad, report: %d, mapIdx: %d",
                                 ESP_BD_ADDR_HEX(bda),
                                 (int) param->input.report_id,
                                 (int) param->input.map_index
                         );
-                        ESP_LOG_BUFFER_HEX("hid", param->input.data, param->input.length);
                         memcpy(lastInput, param->input.data, param->input.length);
                         memcpy(msg.data, param->input.data, param->input.length);
                         getDefaultEventBus().post(msg);
                     }
-                }
-            } else {
-                if (param->input.length == 17) {
-                    if (memcmp(lastInput, param->input.data, param->input.length) != 0) {
-                        memcpy(lastInput, param->input.data, param->input.length);
-                        esp_logi(
-                                hid, "dev: [" ESP_BD_ADDR_STR "] input: %d, report: %d, mapIdx: %d",
-                                ESP_BD_ADDR_HEX(bda),
-                                (int)param->input.usage,
-                                (int) param->input.report_id,
-                                (int) param->input.map_index
-                        );
-                    }
-                    ESP_LOG_BUFFER_HEX("ble", param->input.data, param->input.length);
                 }
             }
 

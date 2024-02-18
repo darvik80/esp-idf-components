@@ -18,6 +18,7 @@ DefaultEventBus &getDefaultEventBus() {
 #endif
 #endif
 #ifdef CONFIG_BUS_ESP_EVENT_LOOP_ENABLED
+                    .useSystemQueue = true,
 #ifdef CONFIG_ESP_EVENT_QUEUE_SIZE
                     .queueSize = CONFIG_ESP_EVENT_QUEUE_SIZE,
 #endif

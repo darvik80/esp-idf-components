@@ -11,6 +11,12 @@
 #include <esp_err.h>
 #include "Logger.h"
 
+struct TaskOptions {
+    uint32_t stackSize = configMINIMAL_STACK_SIZE;
+    size_t priority{tskIDLE_PRIORITY};
+    std::string name;
+};
+
 typedef std::function<void()> TaskEntry;
 
 class FreeRTOSTask {
