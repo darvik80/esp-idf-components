@@ -146,7 +146,8 @@ class FreeRTOSEventBus : public EventBus {
         } flags{};
         union { ;
             uint8_t data[itemSize]{0};
-            void *ptr;
+            SMessage* trivial;
+            IMessage* non_trivial;
         } payload{};
     };
 
@@ -163,11 +164,12 @@ private:
         while (xQueueReceive(_queue, &item, portMAX_DELAY)) {
             if (item.flags.pointer) {
                 esp_logd(bus, "recv pointer 0x%04" PRIxLEAST32, item.messageId);
-                handleMessage(item.messageId, item.payload.ptr);
                 if (item.flags.trivial) {
-                    free(item.payload.ptr);
+                    handleMessage(item.messageId, item.payload.trivial);
+                    free(item.payload.trivial);
                 } else {
-                    delete reinterpret_cast<IMessage *>(item.payload.ptr);
+                    handleMessage(item.messageId, item.payload.non_trivial);
+                    delete item.payload.non_trivial;
                 }
             } else {
                 esp_logd(bus, "recv copyable 0x%04" PRIxLEAST32, item.messageId);
@@ -176,12 +178,12 @@ private:
         }
     }
 
-    static inline void *duplicate(const void *ptr, size_t size) {
-        auto *res = (uint8_t *) malloc(size);
+    static inline SMessage *duplicate(const SMessage *ptr, size_t size) {
+        auto res = malloc(size);
         if (res) {
             memcpy(res, ptr, size);
         }
-        return res;
+        return (SMessage*)res;
     }
 
 public:
@@ -219,7 +221,7 @@ public:
         Item item{
                 .messageId = T::ID,
                 .flags {.pointer = true, .trivial = true},
-                .payload {.ptr = duplicate(&msg, sizeof(T))}
+                .payload {.trivial = duplicate(&msg, sizeof(T))}
         };
         return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
     }
@@ -230,7 +232,7 @@ public:
         Item item{
                 .messageId = T::ID,
                 .flags {.pointer = true, .trivial = false},
-                .payload {.ptr = new T(msg)}
+                .payload {.non_trivial = new T(msg)}
         };
         return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
     }
