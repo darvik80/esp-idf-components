@@ -10,62 +10,60 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
+#include <core/Application.h>
+#include <core/system/System.h>
+
 extern "C" {
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
-
 #include "unity_fixture.h"
 #include "unity_fixture_extras.h"
 #include "test_utils.h"
 #include "memory_checks.h"
 }
 
-#include <freertos/event_groups.h>
-#include "core/EventBus.h"
+#define APP_BIT_RECEIVED	0x0001
 
+EventGroupHandle_t testAppEventHandle = xEventGroupCreate();
 
-#define BIT_RECEIVED	0x0001
-
-/* Declare a variable to hold the handle of the created event group. */
-EventGroupHandle_t testEventHandle = xEventGroupCreate();
-static FreeRTOSEventBus<32> eventBus({.stackSize = 2048, .name="debug"});
-
-struct TestMessage : TMessage<1, 1> {
-    uint32_t status{};
-};
-
-class TestSubscriber : public TMessageSubscriber<TestSubscriber, TestMessage> {
+class TestApp : public Application<TestApp>, public TMessageSubscriber<TestApp, TimerEvent<1>> {
+    FreeRTOSTimer _timer;
 public:
-    void handle(const TestMessage &msg) {
-        esp_logi(bus_test, "handle: %.04X:%d", msg.ID, msg.status);
-        TEST_ASSERT_EQUAL(msg.status, 1);
-        xEventGroupSetBits(testEventHandle, BIT_RECEIVED);
+    void userSetup() override {
+        getRegistry().getEventBus().subscribe(shared_from_this());
+        _timer.fire<1>(1000, false);
+    }
+
+    void handle(const TimerEvent<1>& event) {
+        xEventGroupSetBits(testAppEventHandle, APP_BIT_RECEIVED);
     }
 };
 
 TEST_GROUP(core_esp32);
 
 TEST_SETUP(core_esp32) {
-    auto sub = std::make_shared<TestSubscriber>();
-    eventBus.subscribe(sub);
 }
 
 TEST_TEAR_DOWN(core_esp32) {
 }
 
-TEST(core_esp32, post_simple) {
-    eventBus.post(TestMessage{.status=1});
-    if (BIT_RECEIVED != xEventGroupWaitBits(testEventHandle, BIT_RECEIVED, true, true, pdMS_TO_TICKS(1000))) {
+TEST(core_esp32, simple) {
+    auto app = std::make_shared<TestApp>();
+    app->setup();
+    if (APP_BIT_RECEIVED != xEventGroupWaitBits(testAppEventHandle, APP_BIT_RECEIVED, true, true, pdMS_TO_TICKS(10000))) {
         TEST_FAIL();
     };
-
-    xEventGroupClearBits(testEventHandle, BIT_RECEIVED);
 }
 
 TEST_GROUP_RUNNER(core_esp32) {
-    RUN_TEST_CASE(core_esp32, post_simple);
+    RUN_TEST_CASE(core_esp32, simple);
+}
+
+static void RunAllTests() {
+    RUN_TEST_GROUP(core_esp32);
+    RUN_TEST_GROUP(event_bus);
 }
 
 extern "C" void app_main(void) {
-    UNITY_MAIN(core_esp32);
+    UNITY_MAIN_FUNC(RunAllTests);
 }

@@ -178,14 +178,6 @@ private:
         }
     }
 
-    static inline SMessage *duplicate(const SMessage *ptr, size_t size) {
-        auto res = malloc(size);
-        if (res) {
-            memcpy(res, ptr, size);
-        }
-        return (SMessage*)res;
-    }
-
 public:
     explicit FreeRTOSEventBus(const BusOptions &options) {
         esp_logi(bus, "create freertos queue: " LOG_COLOR_I "%s" LOG_RESET_COLOR ", size: %" PRIi32 ", item-size: %zu",
@@ -221,7 +213,7 @@ public:
         Item item{
                 .messageId = T::ID,
                 .flags {.pointer = true, .trivial = true},
-                .payload {.trivial = duplicate(&msg, sizeof(T))}
+                .payload {.trivial = (SMessage*)memcpy(malloc(sizeof(T)), &msg, sizeof(T))}
         };
         return xQueueSendToBack(_queue, &item, portMAX_DELAY) == pdTRUE;
     }

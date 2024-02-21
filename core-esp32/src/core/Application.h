@@ -13,7 +13,7 @@
 #include <algorithm>
 
 template<typename T>
-class Application : public std::enable_shared_from_this<T>{
+class Application : public std::enable_shared_from_this<T> {
     Registry _registry;
 
 protected:
@@ -39,7 +39,9 @@ public:
                 .max_files = 5,
                 .format_if_mount_failed = true,
         };
-        ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
+        if (auto err = esp_vfs_spiffs_register(&conf); err != ESP_OK) {
+            esp_loge(app, "Failed to init flash: %d:%s", err, esp_err_to_name(err));
+        }
 #endif
 
         esp_event_loop_create_default();
