@@ -39,6 +39,7 @@ public:
     /*
      * queue overwrite works only with queueSize = 1
      */
+    template<std::enable_if_t<(queueSize == 1), bool> = true>
     bool overwrite(const T &msg) {
         return pdPASS == xQueueOverwrite(_handler, &msg);
     }
