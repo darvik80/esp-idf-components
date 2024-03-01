@@ -107,7 +107,10 @@ void BTManager::setup() {
     ESP_ERROR_CHECK(esp_bt_controller_init(&bt_cfg));
     ESP_ERROR_CHECK(esp_bt_controller_enable(ESP_BT_MODE_BLE));
 
-    ESP_ERROR_CHECK(esp_bluedroid_init());
+    esp_bluedroid_config_t cfg {
+        .ssp_en = true
+    };
+    ESP_ERROR_CHECK(esp_bluedroid_init_with_cfg(&cfg));
     ESP_ERROR_CHECK(esp_bluedroid_enable());
 
     ESP_ERROR_CHECK(esp_bt_dev_set_device_name("robot-espidf"));
