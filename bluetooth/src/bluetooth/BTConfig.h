@@ -47,6 +47,8 @@ enum BTMessageId {
     BT_MsgId_SppInput,
 
     BT_MsgId_Scanner,
+    BT_MsgId_BleScanResult,
+    BT_MsgId_BleScanDone,
 
     BT_MsgId_Command,
 };
@@ -71,7 +73,7 @@ struct BTGapDiscoveryDone : TMessage<BT_MsgId_DiscoveryDone, SysLib_BT> {
 };
 
 struct BleDiscoveryRequest : TMessage<BT_MsgId_DiscoveryRequest, SysLib_BT> {
-
+    uint32_t duration;
 };
 
 struct BleDiscoveryStart : TMessage<BT_MsgId_DiscoveryStart, SysLib_BT> {
@@ -132,6 +134,19 @@ inline BTScanner make(std::string_view bdAddr, std::string barcode) {
 
     return msg;
 }
+
+
+struct BleScanResult : CMessage<BT_MsgId_BleScanResult, SysLib_BT> {
+    std::string bda;
+    int rssi{0};
+    std::string name;
+    std::vector<uint8_t> serviceData;
+    std::vector<uint8_t> manufacturerType;
+};
+
+struct BleScanDone : TMessage<BT_MsgId_BleScanDone, SysLib_BT> {
+    int result;
+};
 
 void toJson(cJSON* json, const BTScanner& msg);
 

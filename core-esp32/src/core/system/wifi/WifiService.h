@@ -31,6 +31,10 @@ private:
 public:
     explicit WifiService(Registry &registry);
 
+    [[nodiscard]] std::string_view getServiceName() const override {
+        return "wifi";
+    }
+
     void handle(const SystemEventChanged &msg);
 
     void handle(const Command &cmd);

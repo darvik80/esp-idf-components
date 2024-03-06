@@ -19,6 +19,11 @@ const char *BTUtils::bda2str(esp_bd_addr_t bda, char res[18]) {
     return res;
 }
 
+std::string BTUtils::bda2str(esp_bd_addr_t bda) {
+    char res[18];
+    return bda2str(bda, res);
+}
+
 const char *BTUtils::bda2str(const uint8_t *bda, char res[18]) {
     if (bda == nullptr) {
         return nullptr;

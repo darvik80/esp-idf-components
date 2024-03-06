@@ -10,6 +10,8 @@
 #include <esp_hidh.h>
 #include <esp_gattc_api.h>
 
+#include "BTUtils.h"
+
 
 static const char *s_gattc_evt_names[] = {"REG", "UNREG", "OPEN", "READ_CHAR", "WRITE_CHAR", "CLOSE", "SEARCH_CMPL",
                                           "SEARCH_RES", "READ_DESCR", "WRITE_DESCR", "NOTIFY", "PREP_WRITE", "EXEC",
@@ -39,7 +41,7 @@ static const char *ble_gap_evt_names[] = {"ADV_DATA_SET_COMPLETE", "SCAN_RSP_DAT
                                           "UPDATE_WHITELIST_COMPLETE"};
 
 const char *ble_gap_evt_str(uint8_t event) {
-    if (event >= (sizeof(ble_gap_evt_names)/sizeof(*ble_gap_evt_names))) {
+    if (event >= (sizeof(ble_gap_evt_names) / sizeof(*ble_gap_evt_names))) {
         return "UNKNOWN";
     }
     return ble_gap_evt_names[event];
@@ -47,8 +49,7 @@ const char *ble_gap_evt_str(uint8_t event) {
 
 static const char *ble_addr_type_names[] = {"PUBLIC", "RANDOM", "RPA_PUBLIC", "RPA_RANDOM"};
 
-const char *ble_addr_type_str(esp_ble_addr_type_t ble_addr_type)
-{
+const char *ble_addr_type_str(esp_ble_addr_type_t ble_addr_type) {
     if (ble_addr_type > BLE_ADDR_TYPE_RPA_RANDOM) {
         return "UNKNOWN";
     }
@@ -57,8 +58,7 @@ const char *ble_addr_type_str(esp_ble_addr_type_t ble_addr_type)
 
 #define GAP_DBG_PRINTF(...) printf(__VA_ARGS__)
 
-static void handle_ble_device_result(esp_ble_gap_cb_param_t::ble_scan_result_evt_param *scan_rst)
-{
+static void handle_ble_device_result(esp_ble_gap_cb_param_t::ble_scan_result_evt_param *scan_rst) {
     uint16_t uuid = 0;
     uint16_t appearance = 0;
     char name[64] = {0};
@@ -94,6 +94,13 @@ static void handle_ble_device_result(esp_ble_gap_cb_param_t::ble_scan_result_evt
     GAP_DBG_PRINTF("ADDR_TYPE: '%s'", ble_addr_type_str(scan_rst->ble_addr_type));
     if (adv_name_len) {
         GAP_DBG_PRINTF(", NAME: '%s'", name);
+    }
+    if (uint8_t *adv = esp_ble_resolve_adv_data(scan_rst->ble_adv, ESP_BLE_AD_TYPE_SERVICE_DATA, &adv_name_len); adv) {
+        GAP_DBG_PRINTF(" SRV_DATA: %d, ", adv_name_len);
+    }
+    if (uint8_t *adv = esp_ble_resolve_adv_data(scan_rst->ble_adv, ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE,
+                                                &adv_name_len); adv) {
+        GAP_DBG_PRINTF(" SPECIFIC: %d, ", adv_name_len);
     }
     GAP_DBG_PRINTF("\n");
 
@@ -140,8 +147,8 @@ const char *esp_ble_key_type_str(esp_ble_key_type_t key_type) {
     return key_str;
 }
 
-static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
-    esp_logi(bleh, "GATTC EVENT %s", gattc_evt_str(event));
+void BleDiscovery::gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
+    //esp_logi(ble, "GATTC EVENT %d:%s", event, gattc_evt_str(event));
 
     switch (event) {
         /*
@@ -152,14 +159,52 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
             break;
         }
         case ESP_GAP_BLE_SCAN_RESULT_EVT: {
-            esp_ble_gap_cb_param_t *scan_result = (esp_ble_gap_cb_param_t *) param;
+            auto *scan_result = (esp_ble_gap_cb_param_t *) param;
             switch (scan_result->scan_rst.search_evt) {
                 case ESP_GAP_SEARCH_INQ_RES_EVT: {
-                    handle_ble_device_result(&scan_result->scan_rst);
+                    auto self = s_self.lock();
+                    if (!self) {
+                        break;
+                    }
+
+                    uint8_t nameLen{0}, srvLen{0}, mfLen{0};
+                    auto name = esp_ble_resolve_adv_data(param->scan_rst.ble_adv, ESP_BLE_AD_TYPE_NAME_CMPL, &nameLen);
+                    if (!name) {
+                        name = esp_ble_resolve_adv_data(param->scan_rst.ble_adv, ESP_BLE_AD_TYPE_NAME_SHORT, &nameLen);
+                    }
+                    if (!self->_filter.nameFilter(name, nameLen)) {
+                        break;
+                    }
+                    auto srv = esp_ble_resolve_adv_data(param->scan_rst.ble_adv, ESP_BLE_AD_TYPE_SERVICE_DATA, &srvLen);
+                    if (!self->_filter.serviceDataFilter(srv, srvLen)) {
+                        break;
+                    }
+
+                    auto mf = esp_ble_resolve_adv_data(param->scan_rst.ble_adv, ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE, &mfLen);
+                    if (!self->_filter.manufacturerSpecificTypeFilter(mf, mfLen)) {
+                        break;
+                    }
+
+                    BleScanResult result;
+                    result.bda = BTUtils::bda2str(param->scan_rst.bda);
+                    result.rssi = scan_result->scan_rst.rssi;
+                    if (name) {
+                        result.name.assign((const char *) name, nameLen);
+                    }
+                    if (srv) {
+                        result.serviceData.assign(srv, srv + srvLen);
+                    }
+                    if (mf) {
+                        result.manufacturerType.assign(mf, mf + mfLen);
+                    }
+
+                    getDefaultEventBus().post(result);
                     break;
                 }
                 case ESP_GAP_SEARCH_INQ_CMPL_EVT:
                     esp_logi(ble, "BLE GAP EVENT SCAN DONE: %d", scan_result->scan_rst.num_resps);
+                    getDefaultEventBus().post(BleScanDone{.result = scan_result->scan_rst.num_resps});
+
                     break;
                 default:
                     break;
@@ -228,19 +273,24 @@ static void ble_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
             esp_logi(ble, "BLE GAP EVENT %s", ble_gap_evt_str(event));
             break;
     }
+
 }
 
+std::weak_ptr<BleDiscovery> BleDiscovery::s_self;
+
 void BleDiscovery::setup() {
+    s_self = shared_from_this();
     ESP_ERROR_CHECK(esp_ble_gap_set_device_name("robot-espidf"));
 
-    ESP_ERROR_CHECK(esp_ble_gap_register_callback(ble_gap_event_handler));
+    ESP_ERROR_CHECK(esp_ble_gap_register_callback(BleDiscovery::gapEventHandler));
     ESP_ERROR_CHECK(esp_ble_gattc_register_callback(esp_hidh_gattc_event_handler));
 }
 
-#define SCAN_DURATION_SECONDS 5
+#define SCAN_DURATION_SECONDS 0
 
 void BleDiscovery::handle(const BleDiscoveryRequest &msg) {
-    static esp_ble_scan_params_t hid_scan_params = {
+    esp_ble_gap_stop_scanning();
+    esp_ble_scan_params_t hid_scan_params = {
             .scan_type              = BLE_SCAN_TYPE_ACTIVE,
             .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,
             .scan_filter_policy     = BLE_SCAN_FILTER_ALLOW_ALL,
@@ -253,7 +303,7 @@ void BleDiscovery::handle(const BleDiscoveryRequest &msg) {
     if ((ret = esp_ble_gap_set_scan_params(&hid_scan_params)) != ESP_OK) {
         esp_logi(ble, "esp_ble_gap_set_scan_params failed: %d", ret);
     } else {
-        if ((ret = esp_ble_gap_start_scanning(SCAN_DURATION_SECONDS)) != ESP_OK) {
+        if ((ret = esp_ble_gap_start_scanning(msg.duration)) != ESP_OK) {
             esp_logi(ble, "esp_ble_gap_start_scanning failed: %d", ret);
         }
     }

@@ -135,15 +135,17 @@ void hidhCallback(void *handler_args, esp_event_base_t base, int32_t id, void *e
         }
         case ESP_HIDH_CLOSE_EVENT: {
             const uint8_t *bda = esp_hidh_dev_bda_get(param->close.dev);
-            esp_logi(hid, ESP_BD_ADDR_STR " CLOSE", ESP_BD_ADDR_HEX(bda));
-            BTHidDisconnected msg;
-            BTUtils::bda2str(bda, msg.bdAddr);
-            msg.dev = param->close.dev;
-            getDefaultEventBus().post(msg);
+            if (bda) {
+                //esp_logi(hid, ESP_BD_ADDR_STR " CLOSE", ESP_BD_ADDR_HEX(bda));
+                BTHidDisconnected msg;
+                BTUtils::bda2str(bda, msg.bdAddr);
+                msg.dev = param->close.dev;
+                getDefaultEventBus().post(msg);
+            }
             break;
         }
         default:
-            esp_logi(hid, "EVENT: %d", event);
+            //esp_logi(hid, "EVENT: %d", event);
             break;
     }
 }

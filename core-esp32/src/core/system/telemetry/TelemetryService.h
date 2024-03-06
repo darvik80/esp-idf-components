@@ -17,10 +17,15 @@ class TelemetryService: public TService<TelemetryService, Service_Sys_Telemetry,
 private:
     FreeRTOSTimer _timer;
 #if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32C3)
-    temperature_sensor_handle_t _temp_handle;
+    temperature_sensor_handle_t _temp_handle{};
 #endif
 public:
     explicit TelemetryService(Registry &registry);
+
+    [[nodiscard]] std::string_view getServiceName() const override {
+        return "telemetry";
+    }
+
     void handle(const TimerEvent<SysTid_Telemetry>&);
     ~TelemetryService() override;
 };

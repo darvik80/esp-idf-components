@@ -23,6 +23,8 @@ public:
 
     [[nodiscard]] virtual ServiceId getServiceId() const = 0;
 
+    [[nodiscard]] virtual std::string_view getServiceName() const = 0;
+
     virtual Registry &getRegistry() = 0;
 
     virtual void setup() {}
@@ -55,10 +57,10 @@ public:
     C &create(T &&... all) {
         auto service = std::make_shared<C>(*this, std::forward<T>(all)...);
         if constexpr (std::is_base_of<MessageSubscriber, C>::value) {
-            esp_logi(tmpl, "subscribe service: 0x%04x", C::ID);
+            esp_logi(tmpl, "subscribe service: 0x%04x:%s", C::ID, service->getServiceName().data());
             getEventBus().subscribe(service->shared_from_this());
         } else {
-            esp_logi(tmpl, "not subscribed service: 0x%04x", C::ID);
+            esp_logi(tmpl, "not subscribed service: 0x%04x:%s", C::ID, service->getServiceName().data());
         }
 
         return static_cast<C&>(*_services.emplace_back(service).get());
@@ -94,6 +96,9 @@ public:
 
     [[nodiscard]] ServiceId getServiceId() const override {
         return ID;
+    }
+    [[nodiscard]] std::string_view getServiceName() const override {
+        return "unknown";
     }
 
     Registry &getRegistry() override {

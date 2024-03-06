@@ -12,5 +12,9 @@ class UartConsoleService : public TService<UartConsoleService, Service_Sys_Conso
 public:
     explicit UartConsoleService(Registry &registry);
 
+    [[nodiscard]] std::string_view getServiceName() const override {
+        return "console";
+    }
+
     void setup() override;
 };

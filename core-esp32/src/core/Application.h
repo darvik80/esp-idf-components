@@ -60,7 +60,7 @@ public:
         for (auto service: getRegistry().getServices()) {
             if (service) {
                 service->setup();
-                esp_logd(app, "Setup: %d", service->getServiceId());
+                esp_logd(app, "Setup: 0x%04x:%s", service->getServiceId(), service->getServiceName().data());
             }
         }
     }

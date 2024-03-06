@@ -76,6 +76,10 @@ private:
 public:
     explicit MqttService(Registry &registry);
 
+    [[nodiscard]] std::string_view getServiceName() const override {
+        return "mqtt";
+    }
+
     void handle(const SystemEventChanged &msg);
 
     void apply(const MqttProperties &props);
