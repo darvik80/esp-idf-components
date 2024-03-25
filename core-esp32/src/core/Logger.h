@@ -16,7 +16,7 @@
 
 #include <esp_log.h>
 
-#define log_format(letter, format)  LOG_COLOR_ ## letter "[" #letter "] [%0" PRIu32 "]\033[0;34m[%6s]" LOG_RESET_COLOR ": " format LOG_RESET_COLOR "\n"
+#define log_format(letter, format)  LOG_COLOR_ ## letter "[" #letter "] " LOG_RESET_COLOR "[%08" PRIu32 "] \033[0;34m[%6s]" LOG_RESET_COLOR ": " format LOG_RESET_COLOR "\n"
 
 #define esp_log_level(level, tag, format, ...) do {                     \
         if (level==ESP_LOG_ERROR )          { esp_log_write(ESP_LOG_ERROR,      tag, log_format(E, format), esp_log_timestamp(), tag, ##__VA_ARGS__); } \
@@ -61,19 +61,49 @@
 #define esp_logv(tag, format, ...)
 #endif
 
-#include <system_error>
-#include <source_location>
+#include <fmt/core.h>
 
-inline void check_error(std::error_code code, std::source_location l = std::source_location::current()) {
-    if (code) {
-        esp_loge(system, LOG_COLOR_W "%s\n\t" LOG_COLOR_E "%s %s:%" PRIuLEAST32, code.message().c_str(),
-                 l.function_name(), l.file_name(), l.line());
-    } else {
-        esp_logd(system, LOG_COLOR_I "%s\n\t" LOG_COLOR_I "%s %s:%" PRIuLEAST32, code.message().c_str(),
-                 l.function_name(), l.file_name(), l.line());
-    }
-}
+#define log_format_fmt(letter, format)  LOG_COLOR_ ## letter "[" #letter "] " LOG_RESET_COLOR "[{:#08}] \033[0;34m[{:>6}]" LOG_RESET_COLOR ": " format LOG_RESET_COLOR "\n"
 
-#define std_error_check(code) do {                          \
-    check_error(code, std::source_location::current());     \
-} while(0)
+#define esp_log_level_fmt(level, tag, strf, ...) do {                     \
+        if (level==ESP_LOG_ERROR )          { esp_log_writev(ESP_LOG_ERROR,      tag, fmt::format(log_format_fmt(E, strf), esp_log_timestamp(), tag, ##__VA_ARGS__).c_str(), va_list{}); } \
+        else if (level==ESP_LOG_WARN )      { esp_log_writev(ESP_LOG_WARN,       tag, fmt::format(log_format_fmt(W, strf), esp_log_timestamp(), tag, ##__VA_ARGS__).c_str(), va_list{}); } \
+        else if (level==ESP_LOG_DEBUG )     { esp_log_writev(ESP_LOG_DEBUG,      tag, fmt::format(log_format_fmt(D, strf), esp_log_timestamp(), tag, ##__VA_ARGS__).c_str(), va_list{}); } \
+        else if (level==ESP_LOG_VERBOSE )   { esp_log_writev(ESP_LOG_VERBOSE,    tag, fmt::format(log_format_fmt(V, strf), esp_log_timestamp(), tag, ##__VA_ARGS__).c_str(), va_list{}); } \
+        else                                { esp_log_writev(ESP_LOG_INFO,       tag, fmt::format(log_format_fmt(I, strf), esp_log_timestamp(), tag, ##__VA_ARGS__).c_str(), va_list{}); } \
+    } while(0)
+
+#define esp_log_level_local_fmt(level, tag, format, ...) do {               \
+        if ( LOG_LOCAL_LEVEL >= level ) esp_log_level_fmt(level, tag, format, ##__VA_ARGS__); \
+    } while(0)
+
+#if APP_LOG_LEVEL >= 1
+#define core_loge(tag, format, ...) esp_log_level_local_fmt(ESP_LOG_ERROR,   #tag, format, ##__VA_ARGS__)
+#else
+#define esp_loge(tag, format, ...)
+#endif
+
+#if APP_LOG_LEVEL >= 2
+#define core_logw(tag, format, ...) esp_log_level_local_fmt(ESP_LOG_WARN,    #tag, format, ##__VA_ARGS__)
+#else
+#define esp_logw(tag, format, ...)
+#endif
+
+
+#if APP_LOG_LEVEL >= 3
+#define core_logi(tag, format, ...) esp_log_level_local_fmt(ESP_LOG_INFO,    #tag, format, ##__VA_ARGS__)
+#else
+#define esp_logi(tag, format, ...)
+#endif
+
+#if APP_LOG_LEVEL >= 4
+#define core_logd(tag, format, ...) esp_log_level_local_fmt(ESP_LOG_DEBUG,   #tag, format, ##__VA_ARGS__)
+#else
+#define esp_logd(tag, format, ...)
+#endif
+
+#if APP_LOG_LEVEL >= 5
+#define core_logv(tag, format, ...) esp_log_level_local_fmt(ESP_LOG_VERBOSE, #tag, format, ##__VA_ARGS__)
+#else
+#define esp_logv(tag, format, ...)
+#endif

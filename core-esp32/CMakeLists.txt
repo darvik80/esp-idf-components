@@ -48,5 +48,6 @@ else ()
             spiffs
             json
             driver
+            fmt
     )
 endif ()

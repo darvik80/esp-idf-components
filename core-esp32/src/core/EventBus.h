@@ -253,6 +253,7 @@ public:
 #if defined (CONFIG_IDF_TARGET)
 
 ESP_EVENT_DECLARE_BASE(CORE_EVENT);
+ESP_EVENT_DECLARE_BASE(CORE_NT_EVENT);
 
 class EspEventBus : public EventBus {
     std::string _task;
@@ -283,6 +284,7 @@ public:
 
             ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &_eventLoop));
             ESP_ERROR_CHECK(esp_event_handler_register_with(_eventLoop, CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this));
+            //ESP_ERROR_CHECK(esp_event_handler_register_with(_eventLoop, CORE_NT_EVENT, ESP_EVENT_ANY_ID, eventNTLoop, this));
         }
     }
 
@@ -293,10 +295,9 @@ public:
     }
 
     template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
-    bool post(const T &) {
+    bool post(const T &msg) {
         static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from trivial message");
-        esp_loge(bus, "can't post - non-copyable msg: 0x%04x", T::ID);
-        return false;
+        return ESP_OK == esp_event_post(CORE_EVENT, T::ID, new T(msg), sizeof(T*), portMAX_DELAY);
     }
 
     template<typename T>

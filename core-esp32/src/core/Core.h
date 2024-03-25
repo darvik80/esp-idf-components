@@ -11,4 +11,6 @@
 #include "core/Properties.h"
 #include "core/Registry.h"
 #include "core/Timer.h"
+#include "core/Task.h"
+#include "core/Queue.h"
 #include "core/Application.h"
