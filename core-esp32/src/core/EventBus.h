@@ -29,17 +29,19 @@
 
 #endif
 
-#define DEF_MSG_ID(id, sysId, params) ((uint32_t)id | (((uint32_t)sysId & 0xFF) << 8) | (((uint32_t)params & 0xFF) << 16))
-
 typedef uint32_t MessageId;
+
+constexpr MessageId genMsgId(uint8_t id, uint8_t  sysId, uint16_t params) {
+    return (uint32_t)id | (((uint32_t)sysId & 0xFF) << 8) | (((uint32_t)params & 0xFF) << 16);
+}
 
 struct SMessage {
 };
 
-template<uint8_t eventId, uint8_t sysId, uint8_t bits = 0>
+template<uint8_t eventId, uint8_t sysId, uint16_t bits = 0>
 struct TMessage : SMessage {
     enum {
-        ID = DEF_MSG_ID(eventId, sysId, bits)
+        ID = genMsgId(eventId, sysId, bits)
     };
 };
 
@@ -52,7 +54,7 @@ struct IMessage {
 template<uint8_t eventId, uint8_t sysId, uint8_t bits = 0>
 struct CMessage : IMessage {
     enum {
-        ID = DEF_MSG_ID(eventId, sysId, bits)
+        ID = genMsgId(eventId, sysId, bits)
     };
 
     [[nodiscard]] MessageId id() const override {
