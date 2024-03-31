@@ -71,8 +71,8 @@ struct HidGamePad {
             bool rightAxis: 1;  //0x40
         };
     } keys2;
-    uint8_t lt;
     uint8_t rt;
+    uint8_t lt;
     uint16_t reserved;
 };
 
