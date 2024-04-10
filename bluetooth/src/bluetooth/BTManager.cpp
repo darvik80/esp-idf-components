@@ -4,6 +4,8 @@
 
 #include "BTManager.h"
 
+#ifdef CONFIG_BT_ENABLED
+
 #include <esp_bt_main.h>
 #include <esp_bt_device.h>
 #include <esp_bt.h>
@@ -121,3 +123,6 @@ void BTManager::setup() {
     esp_bt_gap_set_cod(cod, ESP_BT_SET_COD_MAJOR_MINOR);
 #endif
 }
+
+
+#endif

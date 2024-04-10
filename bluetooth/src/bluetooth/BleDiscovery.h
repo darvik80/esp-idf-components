@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <esp_gap_ble_api.h>
 #include "BTConfig.h"
 
 #ifdef CONFIG_BT_BLE_ENABLED
+
+#include <esp_gap_ble_api.h>
 
 struct BleDiscoveryFilter {
     std::function<bool(const uint8_t* ptr, size_t len)> nameFilter = [](const uint8_t* ptr, size_t len) { return true; };

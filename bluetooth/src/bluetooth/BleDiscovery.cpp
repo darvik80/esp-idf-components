@@ -296,7 +296,7 @@ void BleDiscovery::handle(const BleDiscoveryRequest &msg) {
             .scan_filter_policy     = BLE_SCAN_FILTER_ALLOW_ALL,
             .scan_interval          = 0x50,
             .scan_window            = 0x30,
-            .scan_duplicate         = BLE_SCAN_DUPLICATE_ENABLE,
+            .scan_duplicate         = BLE_SCAN_DUPLICATE_DISABLE,
     };
 
     esp_err_t ret = ESP_OK;

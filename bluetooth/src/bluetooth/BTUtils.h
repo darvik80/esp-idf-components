@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <sdkconfig.h>
+
+#ifdef CONFIG_BT_ENABLED
+
 #include <string>
 #include <esp_bt_defs.h>
 #include <esp_gap_bt_api.h>
@@ -17,3 +21,5 @@ public:
 
     static const char *eir2str(uint8_t *eir, char res[ESP_BT_GAP_EIR_DATA_LEN]);
 };
+
+#endif
