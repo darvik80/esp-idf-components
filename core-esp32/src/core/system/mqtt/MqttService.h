@@ -74,6 +74,12 @@ private:
 
     void destroyConnection();
 public:
+    MqttService() = delete;
+
+    MqttService(const MqttService &) = delete;
+
+    MqttService &operator=(const MqttService &) = delete;
+
     explicit MqttService(Registry &registry);
 
     [[nodiscard]] std::string_view getServiceName() const override {

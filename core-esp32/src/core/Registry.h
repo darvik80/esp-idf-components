@@ -55,6 +55,10 @@ private:
 public:
     template<typename C, typename... T>
     C &create(T &&... all) {
+        static_assert(std::is_base_of_v<Service, C>, "C must be derived from Service");
+        static_assert(!std::is_default_constructible_v<C>, "C must not have default constructor");
+        static_assert(!std::is_copy_constructible_v<C>, "C must not have copy constructor");
+
         auto service = std::make_shared<C>(*this, std::forward<T>(all)...);
         if constexpr (std::is_base_of<MessageSubscriber, C>::value) {
             esp_logi(tmpl, "subscribe service: 0x%04x:%s", C::ID, service->getServiceName().data());

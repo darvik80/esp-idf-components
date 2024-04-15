@@ -15,6 +15,12 @@
 class BTGapDiscovery : public TService<BTGapDiscovery, Service_Lib_BTGapDiscovery, SysLib_BT>, public TEventSubscriber<BTGapDiscovery, BTGapDiscoveryRequest, BTGapDiscoveryStart, BTGapDeviceInfo, BTGapDiscoveryDone> {
     std::map<std::string, BTGapDeviceInfo> _devices;
 public:
+    BTGapDiscovery() = delete;
+
+    BTGapDiscovery(const BTGapDiscovery &) = delete;
+
+    BTGapDiscovery &operator=(const BTGapDiscovery &) = delete;
+
     explicit BTGapDiscovery(Registry &registry) : TService(registry) {}
 
     void onEvent(const BTGapDiscoveryRequest& req);

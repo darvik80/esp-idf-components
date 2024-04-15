@@ -19,7 +19,7 @@ class WifiService
           public TMessageSubscriber<WifiService, SystemEventChanged, Command> {
     WifiProperties _props;
 
-    esp_netif_t* _netif{nullptr};
+    esp_netif_t *_netif{nullptr};
 private:
     static void eventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
         auto *self = static_cast<WifiService *>(arg);
@@ -29,6 +29,12 @@ private:
     void eventHandler(esp_event_base_t event_base, int32_t event_id, void *event_data);
 
 public:
+    WifiService() = delete;
+
+    WifiService(const WifiService &) = delete;
+
+    WifiService &operator=(const WifiService &) = delete;
+
     explicit WifiService(Registry &registry);
 
     [[nodiscard]] std::string_view getServiceName() const override {

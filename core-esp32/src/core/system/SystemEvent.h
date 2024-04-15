@@ -14,8 +14,10 @@
 #include "core/EventBus.h"
 
 enum SystemEventId {
-    SysEvtId_Timer,
-    SysEvtId_Command,
+    // System events
+    SysEvtId_Timer = 0xFF,
+    // Standard workflow events
+    SysEvtId_Command = 0,
     SysEvtId_StatusChanged,
     SysEvtId_Telemetry,
 };
@@ -26,8 +28,8 @@ enum SysTimerId {
     SysTid_TimerMaxId,
 };
 
-template<uint8_t timerId>
-struct TimerEvent : TMessage<SysEvtId_Timer, Sys_Core, timerId> {
+template<uint8_t timerId, uint8_t sysId = Sys_Core>
+struct TimerEvent : TMessage<SysEvtId_Timer, sysId, timerId> {
     enum {
         TimerId = timerId
     };
