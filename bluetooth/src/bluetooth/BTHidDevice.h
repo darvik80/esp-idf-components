@@ -87,12 +87,6 @@ class BTHidDevice
           public TMessageSubscriber<BTHidDevice, BTHidConnRequest, BTHidConnected, BTHidDisconnected, BTHidInput> {
     std::unordered_map<std::string, HidDeviceInfo> _devices;
 public:
-    BTHidDevice() = delete;
-
-    BTHidDevice(const BTHidDevice &) = delete;
-
-    BTHidDevice &operator=(const BTHidDevice &) = delete;
-
     explicit BTHidDevice(Registry &registry);
 
     void setup() override;

@@ -10,12 +10,6 @@
 
 class UartConsoleService : public TService<UartConsoleService, Service_Sys_Console, Sys_Core> {
 public:
-    UartConsoleService() = delete;
-
-    UartConsoleService(const UartConsoleService &) = delete;
-
-    UartConsoleService &operator=(const UartConsoleService &) = delete;
-
     explicit UartConsoleService(Registry &registry);
 
     [[nodiscard]] std::string_view getServiceName() const override {

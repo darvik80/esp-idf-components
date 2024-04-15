@@ -29,12 +29,6 @@ private:
     void eventHandler(esp_event_base_t event_base, int32_t event_id, void *event_data);
 
 public:
-    WifiService() = delete;
-
-    WifiService(const WifiService &) = delete;
-
-    WifiService &operator=(const WifiService &) = delete;
-
     explicit WifiService(Registry &registry);
 
     [[nodiscard]] std::string_view getServiceName() const override {

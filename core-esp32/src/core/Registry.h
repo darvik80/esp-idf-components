@@ -67,7 +67,7 @@ public:
             esp_logi(tmpl, "not subscribed service: 0x%04x:%s", C::ID, service->getServiceName().data());
         }
 
-        return static_cast<C&>(*_services.emplace_back(service).get());
+        return static_cast<C &>(*_services.emplace_back(service).get());
     }
 
     template<typename C>
@@ -88,8 +88,22 @@ public:
     }
 };
 
+namespace details_service {
+    struct base_token {
+    };
+
+    class NonCopyable : base_token {
+    protected:
+        NonCopyable() = default;
+    public:
+        NonCopyable(const NonCopyable &) = delete;
+
+        NonCopyable &operator=(const NonCopyable &) = delete;
+    };
+}
+
 template<typename T, ServiceSubId Id, SystemId systemId>
-class TService : public Service, public std::enable_shared_from_this<T>{
+class TService : public Service, public std::enable_shared_from_this<T>, public details_service::NonCopyable {
     Registry &_registry;
 public:
     explicit TService(Registry &registry) : _registry(registry) {}
@@ -101,6 +115,7 @@ public:
     [[nodiscard]] ServiceId getServiceId() const override {
         return ID;
     }
+
     [[nodiscard]] std::string_view getServiceName() const override {
         return "unknown";
     }
@@ -109,7 +124,7 @@ public:
         return _registry;
     }
 
-    DefaultEventBus& getBus() {
+    DefaultEventBus &getBus() {
         return getDefaultEventBus();
     }
 };

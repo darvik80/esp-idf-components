@@ -18,12 +18,6 @@ struct SppDeviceInfo {
 class BTSppDevice : public TService<BTSppScanner, Service_Lib_BTSppScanner, SysLib_BT> , public TEventSubscriber<BTSppScanner, BTSppConnRequest, BTSppConnected, BTSppDisconnected, BTSppInput> {
     std::unordered_map<uint32_t, SppDeviceInfo> _devices;
 public:
-    BTSppDevice() = delete;
-
-    BTSppDevice(const BTSppDevice &) = delete;
-
-    BTSppDevice &operator=(const BTSppDevice &) = delete;
-
     explicit BTSppDevice(Registry &registry);
 
     void setup() override;

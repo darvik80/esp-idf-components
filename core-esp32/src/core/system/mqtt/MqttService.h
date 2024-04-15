@@ -74,11 +74,6 @@ private:
 
     void destroyConnection();
 public:
-    MqttService() = delete;
-
-    MqttService(const MqttService &) = delete;
-
-    MqttService &operator=(const MqttService &) = delete;
 
     explicit MqttService(Registry &registry);
 

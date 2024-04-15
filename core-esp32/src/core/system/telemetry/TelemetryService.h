@@ -20,10 +20,6 @@ private:
     temperature_sensor_handle_t _temp_handle{};
 #endif
 public:
-    TelemetryService() = delete;
-    TelemetryService(const TelemetryService &) = delete;
-    TelemetryService &operator=(const TelemetryService &) = delete;
-
     explicit TelemetryService(Registry &registry);
 
     [[nodiscard]] std::string_view getServiceName() const override {

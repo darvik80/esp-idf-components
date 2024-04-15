@@ -24,12 +24,6 @@ class BleDiscovery : public TService<BleDiscovery, Service_Lib_BleDiscovery, Sys
 private:
     static void gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 public:
-    BleDiscovery() = delete;
-
-    BleDiscovery(const BleDiscovery &) = delete;
-
-    BleDiscovery &operator=(const BleDiscovery &) = delete;
-
     explicit BleDiscovery(Registry &registry, const BleDiscoveryFilter & filter) : TService(registry), _filter{filter} {}
 
     void setup() override;
