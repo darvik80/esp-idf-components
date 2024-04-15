@@ -115,6 +115,7 @@ public:
                 cJSON_Delete(json);
 
                 std::string fullTopic = _prefix + topic.data();
+                esp_logi(mqtt, "publish %s", fullTopic.c_str());
                 esp_mqtt_client_publish(_client, fullTopic.c_str(), str, (int) strlen(str), 0, false);
                 cJSON_free(str);
             } else {

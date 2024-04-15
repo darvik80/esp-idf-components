@@ -32,7 +32,7 @@ private:
     static void task(void *arg) {
         auto task = static_cast<Context *>(arg);
         task->entry();
-        free(task);
+        delete task;
         vTaskDelete(nullptr);
     }
 
@@ -44,12 +44,12 @@ private:
             BaseType_t core
     ) {
         TaskHandle_t handle{nullptr};
-        auto context = static_cast<Context *>(malloc(sizeof (Context)));
-        context->entry = entry;
+        //auto context = static_cast<Context *>(malloc(sizeof (Context)));
+        //context->entry = entry;
 
         ESP_ERROR_CHECK(xTaskCreatePinnedToCore(
                 task, name.data(), stackDepth,
-                context, priority, &handle, core) ? ESP_OK : ESP_FAIL
+                new Context{.entry = entry }, priority, &handle, core) ? ESP_OK : ESP_FAIL
         );
 
         return handle;

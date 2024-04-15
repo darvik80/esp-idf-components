@@ -4,9 +4,12 @@
 
 #include "BTUtils.h"
 
+#ifdef CONFIG_BT_ENABLED
+
 #include <esp_bt_main.h>
 #include <esp_gap_bt_api.h>
 #include <memory.h>
+
 
 const char *BTUtils::bda2str(esp_bd_addr_t bda, char res[18]) {
     if (bda == nullptr) {
@@ -69,3 +72,5 @@ const char *BTUtils::eir2str(uint8_t *eir, char res[ESP_BT_GAP_EIR_DATA_LEN]) {
 
     return res;
 }
+
+#endif

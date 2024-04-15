@@ -5,6 +5,10 @@
 
 #pragma once
 
+#include <sdkconfig.h>
+
+#ifdef CONFIG_BT_ENABLED
+
 #include <esp_gap_bt_api.h>
 #include <esp_hidh.h>
 #include <cJSON.h>
@@ -23,6 +27,7 @@ enum BTServiceId {
     Service_Lib_BTSppScanner,
     Service_Lib_BleDiscovery,
     Service_Lib_BTHidScanner,
+    Service_Lib_BLEBeacon
 };
 
 enum BTMessageId {
@@ -51,6 +56,8 @@ enum BTMessageId {
     BT_MsgId_BleScanDone,
 
     BT_MsgId_Command,
+
+    BT_MsgId_BleLocationTagReport,
 };
 
 struct BTGapDiscoveryRequest : TMessage<BT_MsgId_BleDiscoveryRequest, SysLib_BT> {
@@ -162,3 +169,5 @@ struct BTCommand : TMessage<BT_MsgId_Command, SysLib_BT, subCmd> {
 struct BTScanCommand : BTCommand<BT_SubId_Scan> {
 
 };
+
+#endif

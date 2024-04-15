@@ -6,6 +6,8 @@
 
 #include "BTConfig.h"
 
+#ifdef CONFIG_BT_ENABLED
+
 class BTManager : public TService<BTManager, Service_Lib_BTManager, SysLib_BT> {
 public:
     BTManager() = delete;
@@ -18,3 +20,5 @@ public:
 
     void setup() override;
 };
+
+#endif

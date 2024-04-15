@@ -1,3 +1,10 @@
 menu "bluetooth-support"
+    config BLE_BEACON_ENABLE
+        bool "Enable Beacons support"
+        default y
+        depends on BT_BLE_ENABLED
+
+        help
+            Enable BLE-Beacon module
 
 endmenu
