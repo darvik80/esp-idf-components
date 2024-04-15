@@ -95,6 +95,7 @@ namespace details_service {
     class NonCopyable : base_token {
     protected:
         NonCopyable() = default;
+
     public:
         NonCopyable(const NonCopyable &) = delete;
 
