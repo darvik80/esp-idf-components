@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "core/Logger.h"
+
 extern "C" {
 #include "unity_fixture.h"
 #include "unity_fixture_extras.h"
