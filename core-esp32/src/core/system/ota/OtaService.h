@@ -12,8 +12,6 @@ class OtaService : public TService<OtaService, Service_Sys_Ota, Sys_Core>, publi
 public:
     explicit OtaService(Registry &registry) : TService(registry) {}
 
-    void setup() override;
-
     [[nodiscard]] std::string_view getServiceName() const override {
         return "ota";
     }

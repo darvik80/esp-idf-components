@@ -163,7 +163,7 @@ void MqttService::eventHandler(esp_event_base_t base, int32_t event_id, void *ev
             eventHandlerError(base, event_id, event_data);
             break;
         default:
-            esp_logi(mqtt, "event: %ld", event_id);
+            esp_logd(mqtt, "event: %ld", event_id);
             break;
     }
 }
