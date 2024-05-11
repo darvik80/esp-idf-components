@@ -96,6 +96,21 @@ inline void toJson(cJSON *json, const Telemetry &msg) {
     cJSON_AddNumberToObject(json, "wifi-rssi", msg.wifiRssi);
 }
 
-struct OtaUpdate : TMessage<SysEvtId_Ota, Sys_Core> {
-    const char version[32];
+struct OtaUpdate : CMessage<SysEvtId_Ota, Sys_Core> {
+    std::string version;
+    std::string url;
 };
+
+inline void fromJson(const cJSON *json, OtaUpdate &ota) {
+    cJSON *item = json->child;
+    while (item) {
+        if (!strcmp(item->string, "version") && item->type == cJSON_String) {
+            ota.version = item->valuestring;
+        } else if (!strcmp(item->string, "url") && item->type == cJSON_String) {
+            ota.url = item->valuestring;
+        }
+
+        item = item->next;
+    }
+
+}

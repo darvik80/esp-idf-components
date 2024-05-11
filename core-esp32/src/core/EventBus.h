@@ -262,8 +262,14 @@ class EspEventBus : public EventBus {
     esp_event_loop_handle_t _eventLoop{};
 private:
     static void eventLoop(void *handler_arg, esp_event_base_t base, int32_t id, void *event_data) {
-        auto self = (EspEventBus *) handler_arg;
-        self->handleMessage((uint32_t) id, event_data);
+        auto self = static_cast<EspEventBus *>( handler_arg);
+        if (base == CORE_NT_EVENT) {
+            auto ptr = *(IMessage **) event_data;
+            self->handleMessage((MessageId) id, ptr);
+            delete ptr;
+        } else {
+            self->handleMessage((MessageId) id, event_data);
+        }
     }
 
 public:
@@ -273,7 +279,8 @@ public:
         if (options.useSystemQueue) {
             _task = "sys_evt";
             esp_event_loop_create_default();
-            esp_event_handler_register(CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this);
+            ESP_ERROR_CHECK(esp_event_handler_register(CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this));
+            ESP_ERROR_CHECK(esp_event_handler_register(CORE_NT_EVENT, ESP_EVENT_ANY_ID, eventLoop, this));
         } else {
             _task = options.name;
             esp_event_loop_args_t loop_args = {
@@ -286,7 +293,7 @@ public:
 
             ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &_eventLoop));
             ESP_ERROR_CHECK(esp_event_handler_register_with(_eventLoop, CORE_EVENT, ESP_EVENT_ANY_ID, eventLoop, this));
-            //ESP_ERROR_CHECK(esp_event_handler_register_with(_eventLoop, CORE_NT_EVENT, ESP_EVENT_ANY_ID, eventNTLoop, this));
+            ESP_ERROR_CHECK(esp_event_handler_register_with(_eventLoop, CORE_NT_EVENT, ESP_EVENT_ANY_ID, eventLoop, this));
         }
     }
 
@@ -298,8 +305,9 @@ public:
 
     template<typename T, std::enable_if_t<!std::is_trivially_copyable<T>::value, bool> = true>
     bool post(const T &msg) {
-        static_assert((std::is_base_of<SMessage, T>::value), "Msg is not derived from trivial message");
-        return ESP_OK == esp_event_post(CORE_EVENT, T::ID, new T(msg), sizeof(T*), portMAX_DELAY);
+        static_assert((std::is_base_of<IMessage, T>::value), "Msg is not derived from non-trivial message");
+        auto ptr = new T(msg);
+        return ESP_OK == esp_event_post(CORE_NT_EVENT, T::ID, &ptr, sizeof(T *), portMAX_DELAY);
     }
 
     template<typename T>

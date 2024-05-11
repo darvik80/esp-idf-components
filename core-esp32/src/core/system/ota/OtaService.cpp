@@ -41,24 +41,23 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
 void OtaService::setup() {
 }
 
-void OtaService::handle(const OtaUpdate& event) {
+void OtaService::handle(const OtaUpdate &event) {
+    esp_logi(app, "handle ota: %s:%s", event.version.c_str(), event.url.c_str());
     auto appDesc = esp_app_get_description();
-    if (strncmp(appDesc->version, event.version, 32) == 0) {
+    if (event.version == appDesc->version) {
         return;
     }
-    esp_logi(app, "cur-ver: %s, ota-ver: %s", appDesc->version, event.version);
+    esp_logi(app, "cur-ver: %s, ota-ver: %s", appDesc->version, event.version.c_str());
 
-    _task = FreeRTOSTask::submit([this]() {
+    _task = FreeRTOSTask::submit([event]() {
         esp_http_client_config_t clientConfig = {
-                .url = "https://darvik.synology.me/magic-lamp.bin",
+                .url = event.url.c_str(),
                 .auth_type = HTTP_AUTH_TYPE_NONE,
-                //.cert_pem = (char *) (ali_cloud_cert_start),
-                //.timeout_ms = 180000,
+                .method = HTTP_METHOD_GET,
                 .event_handler = eventHandler,
                 .transport_type = HTTP_TRANSPORT_OVER_TCP,
-                .skip_cert_common_name_check = false,
+                .skip_cert_common_name_check=true,
                 .keep_alive_enable = true,
-
         };
 
         esp_https_ota_config_t config = {
