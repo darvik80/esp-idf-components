@@ -10,6 +10,7 @@ enum SystemServiceId {
     Service_Sys_Mqtt,
     Service_Sys_Console,
     Service_Sys_Telemetry,
+    Service_Sys_Ota,
 };
 
 enum System {

@@ -20,6 +20,7 @@ enum SystemEventId {
     SysEvtId_Command = 0,
     SysEvtId_StatusChanged,
     SysEvtId_Telemetry,
+    SysEvtId_Ota,
 };
 
 enum SysTimerId {
@@ -94,3 +95,7 @@ inline void toJson(cJSON *json, const Telemetry &msg) {
     }
     cJSON_AddNumberToObject(json, "wifi-rssi", msg.wifiRssi);
 }
+
+struct OtaUpdate : TMessage<SysEvtId_Ota, Sys_Core> {
+    const char version[32];
+};

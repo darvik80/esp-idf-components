@@ -44,8 +44,6 @@ private:
             BaseType_t core
     ) {
         TaskHandle_t handle{nullptr};
-        //auto context = static_cast<Context *>(malloc(sizeof (Context)));
-        //context->entry = entry;
 
         ESP_ERROR_CHECK(xTaskCreatePinnedToCore(
                 task, name.data(), stackDepth,

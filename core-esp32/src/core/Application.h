@@ -11,6 +11,7 @@
 #include "Registry.h"
 
 #include <algorithm>
+#include <esp_app_desc.h>
 
 template<typename T>
 class Application : public std::enable_shared_from_this<T> {
@@ -25,6 +26,10 @@ public:
     }
 
     virtual void setup() {
+        auto appDesc = esp_app_get_description();
+        esp_logi(app, "idf-ver: %s", appDesc->idf_ver);
+        esp_logi(app, "app-name: %s", appDesc->project_name);
+        esp_logi(app, "app-ver: %s", appDesc->version);
         esp_err_t ret = nvs_flash_init();
         if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
             ESP_ERROR_CHECK(nvs_flash_erase());

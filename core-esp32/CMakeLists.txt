@@ -31,6 +31,7 @@ else ()
             src/core/system/wifi/*.cpp
             src/core/system/console/*.cpp
             src/core/system/telemetry/*.cpp
+            src/core/system/ota/*.cpp
     )
 
     idf_component_register(
@@ -42,6 +43,7 @@ else ()
             esp_timer
             esp_event
             esp_wifi
+            esp_https_ota
             console
             nvs_flash
             mqtt

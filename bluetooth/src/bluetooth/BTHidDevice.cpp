@@ -4,6 +4,8 @@
 
 #include "BTHidDevice.h"
 
+#ifdef CONFIG_BT_ENABLED
+
 #include <esp_hidh.h>
 #include "BTUtils.h"
 #include "BTHidCodes.h"
@@ -207,3 +209,5 @@ void BTHidDevice::handle(const BTHidInput &msg) {
         }
     }
 }
+
+#endif

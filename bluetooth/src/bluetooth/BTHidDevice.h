@@ -4,6 +4,7 @@
 
 #pragma once
 
+#ifdef CONFIG_BT_ENABLED
 #include <cstdint>
 #include <esp_hidh.h>
 #include <esp_bt_defs.h>
@@ -99,3 +100,5 @@ public:
 
     void handle(const BTHidInput &msg);
 };
+
+#endif
