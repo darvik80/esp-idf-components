@@ -10,6 +10,7 @@
 
 #include "EventBus.h"
 #include "Properties.h"
+#include "detail/NonCopyable.h"
 
 typedef uint16_t ServiceId;
 typedef uint8_t ServiceSubId;
@@ -88,23 +89,8 @@ public:
     }
 };
 
-namespace details_service {
-    struct base_token {
-    };
-
-    class NonCopyable : base_token {
-    protected:
-        NonCopyable() = default;
-
-    public:
-        NonCopyable(const NonCopyable &) = delete;
-
-        NonCopyable &operator=(const NonCopyable &) = delete;
-    };
-}
-
 template<typename T, ServiceSubId Id, SystemId systemId>
-class TService : public Service, public std::enable_shared_from_this<T>, public details_service::NonCopyable {
+class TService : public Service, public std::enable_shared_from_this<T>, public detail::NonCopyable {
     Registry &_registry;
 public:
     explicit TService(Registry &registry) : _registry(registry) {}
