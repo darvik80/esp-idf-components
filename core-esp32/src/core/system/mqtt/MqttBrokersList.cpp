@@ -21,7 +21,7 @@ MqttBrokersList::BrokerInfo MqttBrokersList::brokerInfoFromProperties(const Mqtt
     }
     return MqttBrokersList::BrokerInfo{
             .uri = props.uri,
-            .clientId = props.deviceName,
+            //.clientId = props.deviceName,
             .username = props.username,
             .password = props.password,
             .caCert = props.caCert,

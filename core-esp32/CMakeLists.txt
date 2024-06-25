@@ -32,6 +32,7 @@ else ()
             src/core/system/console/*.cpp
             src/core/system/telemetry/*.cpp
             src/core/system/ota/*.cpp
+            src/core/system/exchange/*.cpp
     )
 
     idf_component_register(
