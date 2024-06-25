@@ -17,6 +17,44 @@
 #include "MqttBrokersList.h"
 #include "MqttProperties.h"
 
+#include <core/StateMachine.h>
+
+ESP_EVENT_DECLARE_BASE(MQTT_INTERNAL_EVENT);
+
+namespace mqtt {
+    enum Event {
+        Wifi_EvtDisconnected,
+        Wifi_EvtConnected,
+        Mqtt_EvtConnecting,
+        Mqtt_EvtConnected,
+        Mqtt_EvtDisconnected,
+    };
+
+    struct WifiDisconnectedState : State<
+            StateEvent<Wifi_EvtConnected>, struct WifiConnectedState> {
+    };
+
+    struct WifiConnectedState : State<
+            StateEvent<Mqtt_EvtConnecting>, struct ConnectingState,
+            StateEvent<Wifi_EvtDisconnected>, struct WifiDisconnectedState> {
+    };
+
+    struct ConnectingState : State<
+            StateEvent<Wifi_EvtDisconnected>, struct WifiDisconnectedState,
+            StateEvent<Mqtt_EvtConnected>, struct ConnectedState> {
+    };
+
+    struct ConnectedState : State<
+            StateEvent<Mqtt_EvtDisconnected>, struct DisconnectedState,
+            StateEvent<Wifi_EvtDisconnected>, struct WifiDisconnectedState> {
+    };
+
+    struct DisconnectedState : State<
+            StateEvent<Mqtt_EvtConnecting>, struct ConnectingState,
+            StateEvent<Wifi_EvtDisconnected>, struct WifiDisconnectedState> {
+    };
+}
+
 typedef std::function<void(const cJSON *json)> MqttJsonHandler;
 
 enum mqtt_sub_type_t {
@@ -33,7 +71,8 @@ struct mqtt_sub_info {
 class MqttService
         : public TService<MqttService, Service_Sys_Mqtt, Sys_Core>,
           public TPropertiesConsumer<MqttService, MqttProperties>,
-          public TMessageSubscriber<MqttService, SystemEventChanged> {
+          public TMessageSubscriber<MqttService, SystemEventChanged>,
+          public StateMachine<MqttService, mqtt::WifiDisconnectedState, mqtt::WifiConnectedState, mqtt::ConnectingState, mqtt::ConnectedState, mqtt::DisconnectedState> {
 
     EventGroupHandle_t _eventGroup;
     esp_mqtt_client_handle_t _client{nullptr};
@@ -120,4 +159,15 @@ public:
     }
 
     ~MqttService() override;
+
+public:
+    void onStateChanged(const TransitionTo<mqtt::WifiConnectedState> &);
+
+    void onStateChanged(const TransitionTo<mqtt::WifiDisconnectedState> &);
+
+    void onStateChanged(const TransitionTo<mqtt::DisconnectedState> &);
+
+    void onStateChanged(const TransitionTo<mqtt::ConnectingState> &);
+
+    void onStateChanged(const TransitionTo<mqtt::ConnectedState> &);
 };
