@@ -263,7 +263,7 @@ MqttService::~MqttService() {
 }
 
 void MqttService::onStateChanged(const TransitionTo<mqtt::WifiConnectedState> &) {
-    esp_logi(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::WifiConnectedState]");
+    esp_logd(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::WifiConnectedState]");
     auto [broker, update] = _balancer.getNextBroker();
     esp_logi(mqtt, "Connecting...: %s", broker.uri.c_str());
     createConnection(broker);
@@ -271,7 +271,7 @@ void MqttService::onStateChanged(const TransitionTo<mqtt::WifiConnectedState> &)
 }
 
 void MqttService::onStateChanged(const TransitionTo<mqtt::WifiDisconnectedState> &) {
-    esp_logi(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::WifiDisconnectedState]");
+    esp_logd(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::WifiDisconnectedState]");
     if (std::get_if<mqtt::ConnectedState *>(&getPrevState())) {
         destroyConnection();
         getBus().post(SystemEventChanged{.status = SystemStatus::Mqtt_Disconnected});
@@ -279,16 +279,16 @@ void MqttService::onStateChanged(const TransitionTo<mqtt::WifiDisconnectedState>
 }
 
 void MqttService::onStateChanged(const TransitionTo<mqtt::ConnectingState> &) {
-    esp_logi(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::ConnectingState]");
+    esp_logd(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::ConnectingState]");
 }
 
 void MqttService::onStateChanged(const TransitionTo<mqtt::ConnectedState> &) {
-    esp_logi(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::ConnectedState]");
+    esp_logd(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::ConnectedState]");
     getBus().post(SystemEventChanged{.status = SystemStatus::Mqtt_Connected,});
 }
 
 void MqttService::onStateChanged(const TransitionTo<mqtt::DisconnectedState> &) {
-    esp_logi(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::DisconnectedState]");
+    esp_logd(mqtt, LOG_COLOR(LOG_COLOR_BROWN) "[onStateChanged::DisconnectedState]");
     getBus().post(SystemEventChanged{.status = SystemStatus::Mqtt_Disconnected});
     StateMachine::handle(StateEvent<mqtt::Mqtt_EvtConnecting>{});
 }

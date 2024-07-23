@@ -11,14 +11,16 @@ WifiService::WifiService(Registry &registry) : TService(registry) {
 
 void WifiService::eventHandler(esp_event_base_t event_base, int32_t event_id, void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        //StateMachine::handle(StateEvent<wifi::Wifi_ReqConnect>{});
         ESP_ERROR_CHECK(esp_wifi_scan_start(nullptr, false));
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
+        auto *event = static_cast<wifi_event_sta_connected_t *>(event_data);
+        StateMachine::handle(StateEvent<wifi::Wifi_EvtApConnected>{}, *event);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        StateMachine::handle(StateEvent<wifi::Wifi_EvtDisconnected>{});
+        auto *event = static_cast<wifi_event_sta_disconnected_t *>(event_data);
+        StateMachine::handle(StateEvent<wifi::Wifi_EvtDisconnected>{}, *event);
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         auto *event = (ip_event_got_ip_t *) event_data;
-        esp_logi(wifi, "Connected, got ip: " IPSTR, IP2STR(&event->ip_info.ip));
-        StateMachine::handle(StateEvent<wifi::Wifi_EvtConnected>{});
+        StateMachine::handle(StateEvent<wifi::Wifi_EvtConnected>{}, *event);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
         StateMachine::handle(StateEvent<wifi::Wifi_EvtScanDone>{});
     } else {
@@ -29,13 +31,13 @@ void WifiService::eventHandler(esp_event_base_t event_base, int32_t event_id, vo
 void WifiService::handle(const Command &cmd) {
     if (strcmp(cmd.cmd, "wifi") == 0) {
         if (strcmp(cmd.params, "scan") == 0) {
-            if (!std::get_if<wifi::ScanningState*>(&getCurrentState())) {
+            if (!std::get_if<wifi::ScanningState *>(&getCurrentState())) {
                 StateMachine::handle(StateEvent<wifi::Wifi_ReqScan>{});
             } else {
                 esp_logi(mqtt, LOG_COLOR(LOG_COLOR_RED) "... scan in progress ...");
             }
         } else if (strcmp(cmd.params, "ip") == 0) {
-            if (std::get_if<wifi::ConnectedState*>(&getCurrentState())) {
+            if (std::get_if<wifi::ConnectedState *>(&getCurrentState())) {
                 esp_netif_ip_info_t ip_info;
                 esp_netif_get_ip_info(_netif, &ip_info);
                 esp_logi(
@@ -84,29 +86,41 @@ void WifiService::apply(const WifiProperties &props) {
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_start());
 }
 
-void WifiService::onStateChanged(const TransitionTo<wifi::DisconnectedState>&) {
-    esp_logi(wifi, "onStateChanged::TransitionTo<wifi::DisconnectedState>");
-    if (!std::get_if<wifi::ConnectingState*>(&getPrevState())) {
+void WifiService::onStateChanged(const TransitionTo<wifi::DisconnectedState> &, const wifi_event_sta_disconnected_t& event) {
+    esp_logd(wifi, "onStateChanged::TransitionTo<wifi::DisconnectedState>");
+    if (!std::get_if<wifi::ConnectingState *>(&getPrevState())) {
+        esp_logi(wifi, "Disconnected from AP: " LOG_COLOR(LOG_COLOR_CYAN) "%s", event.ssid);
         getBus().post(SystemEventChanged{.status = SystemStatus::Wifi_Disconnected});
     }
     StateMachine::handle(StateEvent<wifi::Wifi_ReqConnect>{});
 }
 
-void WifiService::onStateChanged(const TransitionTo<wifi::ConnectingState>&) {
-    esp_logi(wifi, "onStateChanged::TransitionTo<wifi::ConnectingState>");
+void WifiService::onStateChanged(const TransitionTo<wifi::ConnectingState> &) {
+    esp_logd(wifi, "onStateChanged::TransitionTo<wifi::ConnectingState>");
     ESP_ERROR_CHECK(esp_wifi_connect());
 }
 
-void WifiService::onStateChanged(const TransitionTo<wifi::ConnectedState>&) {
-    esp_logi(wifi, "onStateChanged::TransitionTo<wifi::ConnectedState>");
+void WifiService::onStateChanged(const TransitionTo<wifi::ApConnectedState> &, const wifi_event_sta_connected_t &event) {
+    esp_logd(wifi, "onStateChanged::TransitionTo<wifi::ApConnectedState>");
+    esp_logi(wifi, "Connected to AP: " LOG_COLOR(LOG_COLOR_CYAN) "%s", event.ssid);
+}
+
+void WifiService::onStateChanged(const TransitionTo<wifi::ConnectedState> &, const ip_event_got_ip_t &event) {
+    esp_logd(wifi, "onStateChanged::TransitionTo<wifi::ConnectedState>");
+    esp_logi(wifi, "Connected, got ip: " LOG_COLOR(LOG_COLOR_CYAN) IPSTR, IP2STR(&event.ip_info.ip));
     getBus().post(SystemEventChanged{.status = SystemStatus::Wifi_Connected});
 }
 
-void WifiService::onStateChanged(const TransitionTo<wifi::ScanningState>&) {
-    esp_logi(wifi, "onStateChanged::TransitionTo<wifi::ScanningState>");
-    getBus().post(SystemEventChanged{.status = SystemStatus::Wifi_Disconnected});
+void WifiService::onStateChanged(const TransitionTo<wifi::ScanningState> &) {
+    esp_logd(wifi, "onStateChanged::TransitionTo<wifi::ScanningState>");
+    if (std::get_if<wifi::ConnectedState *>(&getPrevState()) || std::get_if<wifi::ApConnectedState *>(&getPrevState())) {
+        wifi_ap_record_t wifi_ap_record;
+        esp_wifi_sta_get_ap_info(&wifi_ap_record);
+        esp_logi(wifi, "Force disconnect, from AP: " LOG_COLOR(LOG_COLOR_CYAN) "%s", wifi_ap_record.ssid);
+        esp_wifi_disconnect();
+        getBus().post(SystemEventChanged{.status = SystemStatus::Wifi_Disconnected});
+    }
 
-    esp_wifi_disconnect();
     wifi_scan_config_t scan{
             .show_hidden = false,
             .scan_type = WIFI_SCAN_TYPE_ACTIVE,
@@ -121,8 +135,8 @@ void WifiService::onStateChanged(const TransitionTo<wifi::ScanningState>&) {
     ESP_ERROR_CHECK(esp_wifi_scan_start(&scan, false));
 }
 
-void WifiService::onStateChanged(const TransitionTo<wifi::ScanCompletedState>&) {
-    esp_logi(wifi, "onStateChanged::TransitionTo<wifi::ScanCompletedState>");
+void WifiService::onStateChanged(const TransitionTo<wifi::ScanCompletedState> &) {
+    esp_logd(wifi, "onStateChanged::TransitionTo<wifi::ScanCompletedState>");
     uint16_t appsNumber{0};
     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&appsNumber));
     esp_logi(wifi, "scan done, found AP: %d", appsNumber);
@@ -152,11 +166,9 @@ void WifiService::onStateChanged(const TransitionTo<wifi::ScanCompletedState>&) 
         } else {
             esp_logw(wifi, "not found configured AP - re-scan");
             esp_wifi_scan_start(nullptr, false);
-            StateMachine::handle(StateEvent<wifi::Wifi_EvtDisconnected>{});
         }
     } else {
         esp_wifi_scan_start(nullptr, false);
-        StateMachine::handle(StateEvent<wifi::Wifi_EvtDisconnected>{});
     }
 }
 
