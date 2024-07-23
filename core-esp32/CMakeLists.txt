@@ -33,6 +33,7 @@ else ()
             src/core/system/telemetry/*.cpp
             src/core/system/ota/*.cpp
             src/core/system/exchange/*.cpp
+            src/core/system/storage/*.cpp
     )
 
     idf_component_register(

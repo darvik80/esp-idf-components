@@ -9,4 +9,5 @@
 enum SystemPropId {
     Props_Sys_Wifi,
     Props_Sys_Mqtt,
+    Props_Sys_Uart,
 };
