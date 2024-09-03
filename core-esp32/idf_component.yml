@@ -2,3 +2,4 @@ version: "0.1.0"
 description: Core Help libs
 dependencies:
   idf: ">=5.0"
+  espressif/fmt: "^10.1.0~1"
