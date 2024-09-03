@@ -33,6 +33,8 @@ else ()
             src/core/system/telemetry/*.cpp
             src/core/system/ota/*.cpp
             src/core/system/exchange/*.cpp
+            src/core/system/exchange/spi/*.cpp
+            src/core/system/exchange/uart/*.cpp
             src/core/system/storage/*.cpp
     )
 
