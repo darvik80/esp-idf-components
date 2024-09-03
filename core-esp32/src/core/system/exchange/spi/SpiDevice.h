@@ -72,11 +72,15 @@ private:
 protected:
     void unpackBuffer(void *payload, SpiMessage &msg);
 
-    QueueHandle_t getRxQueue(SpiQueuePriority prio) const {
+    TaskHandle_t getTaskHandle() const {
+        return _task;
+    }
+
+    QueueHandle_t getRxQueue(int prio) const {
         return _rx_queue[prio];
     }
 
-    QueueHandle_t getTxQueue(SpiQueuePriority prio) const {
+    QueueHandle_t getTxQueue(int prio) const {
         return _tx_queue[prio];
     }
 

@@ -105,25 +105,21 @@ void SpiSlaveDevice::run() {
 
 void *SpiSlaveDevice::getNextTxBuffer() const {
     SpiMessage buf_handle{0};
-    esp_err_t ret = ESP_OK;
+    BaseType_t ret = pdFALSE;
 
     /* Get or create new tx_buffer
      *	1. Check if SPI TX queue has pending buffers. Return if valid buffer is obtained.
      *	2. Create a new empty tx buffer and return */
 
     /* Get buffer from SPI Tx queue */
-    if (uxQueueMessagesWaiting(getTxQueue(PRIO_Q_HIGH)))
-        ret = xQueueReceive(getTxQueue(PRIO_Q_HIGH), &buf_handle, portMAX_DELAY);
-    else if (uxQueueMessagesWaiting(getTxQueue(PRIO_Q_MID)))
-        ret = xQueueReceive(getTxQueue(PRIO_Q_MID), &buf_handle, portMAX_DELAY);
-    else if (uxQueueMessagesWaiting(getTxQueue(PRIO_Q_LOW)))
-        ret = xQueueReceive(getTxQueue(PRIO_Q_LOW), &buf_handle, portMAX_DELAY);
-    else
-        ret = pdFALSE;
+    for (int idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
+        if (ret = xQueueReceive(getTxQueue(idx), &buf_handle, 0); ret == pdTRUE) {
+            break;
+        }
+    }
 
     if (ret == pdTRUE && buf_handle.payload) {
         /* indicate waiting data on ready pin */
-
         return buf_handle.payload;
     }
 
@@ -227,24 +223,14 @@ esp_err_t SpiSlaveDevice::writeData(const SpiMessage *buffer) {
 }
 
 esp_err_t SpiSlaveDevice::readData(SpiMessage *buffer) {
-    BaseType_t ret = pdFALSE;
-
     while (true) {
-        if (uxQueueMessagesWaiting(getRxQueue(PRIO_Q_HIGH))) {
-            ret = xQueueReceive(getRxQueue(PRIO_Q_HIGH), buffer, portMAX_DELAY);
-            break;
-        } else if (uxQueueMessagesWaiting(getRxQueue(PRIO_Q_MID))) {
-            ret = xQueueReceive(getRxQueue(PRIO_Q_MID), buffer, portMAX_DELAY);
-            break;
-        } else if (uxQueueMessagesWaiting(getRxQueue(PRIO_Q_LOW))) {
-            ret = xQueueReceive(getRxQueue(PRIO_Q_LOW), buffer, portMAX_DELAY);
-            break;
-        } else {
-            vTaskDelay(1);
+        for (int idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
+            if (xQueueReceive(getRxQueue(idx), buffer, 0)) {
+                return ESP_OK;
+            }
         }
+        vTaskDelay(1);
     }
-
-    return ret == pdTRUE ? ESP_OK : ESP_FAIL;
 }
 
 void SpiSlaveDevice::destroy() {

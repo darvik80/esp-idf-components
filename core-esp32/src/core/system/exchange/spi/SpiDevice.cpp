@@ -38,6 +38,7 @@ esp_err_t SpiDevice::setup() {
 
     usleep(500);
 
+    xTaskNotifyGive(getTaskHandle());
     return ESP_OK;
 }
 
