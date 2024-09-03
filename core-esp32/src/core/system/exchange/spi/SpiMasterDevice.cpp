@@ -23,36 +23,33 @@ void IRAM_ATTR SpiMasterDevice::gpio_handshake_isr_handler(void *arg) {
     //Give the semaphore.
     auto *self = static_cast<SpiMasterDevice *>(arg);
     BaseType_t mustYield = false;
-    xSemaphoreGiveFromISR(self->_semaphore, &mustYield);
+    vTaskNotifyGiveFromISR(self->getTaskHandle(), &mustYield);
     if (mustYield) {
         portYIELD_FROM_ISR(mustYield);
     }
 }
 
 void IRAM_ATTR SpiMasterDevice::gpio_ready_data_isr_handler(void *arg) {
-    // //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
-    // //looking at the time between interrupts and refusing any interrupt too close to another one.
-    // static uint32_t lasthandshaketime_us;
-    // uint32_t currtime_us = esp_timer_get_time();
-    // uint32_t diff = currtime_us - lasthandshaketime_us;
-    // if (diff < 1000) {
-    //     return; //ignore everything <1ms after an earlier irq
-    // }
-    // lasthandshaketime_us = currtime_us;
+    //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
+    //looking at the time between interrupts and refusing any interrupt too close to another one.
+    static uint32_t lasthandshaketime_us;
+    uint32_t currtime_us = esp_timer_get_time();
+    uint32_t diff = currtime_us - lasthandshaketime_us;
+    if (diff < 1000) {
+        return; //ignore everything <1ms after an earlier irq
+    }
+    lasthandshaketime_us = currtime_us;
 
     //Give the semaphore.
     auto *self = static_cast<SpiMasterDevice *>(arg);
     BaseType_t mustYield = false;
-    xSemaphoreGiveFromISR(self->_semaphore, &mustYield);
+    vTaskNotifyGiveFromISR(self->getTaskHandle(), &mustYield);
     if (mustYield) {
         portYIELD_FROM_ISR(mustYield);
     }
 }
 
 esp_err_t SpiMasterDevice::setup() {
-    _semaphore = xSemaphoreCreateBinary();
-    assert(_semaphore);
-
     gpio_set_direction(PIN_NUM_CS, GPIO_MODE_OUTPUT); // Setting the CS' pin to work in OUTPUT mode
 
     spi_bus_config_t buscfg = {
@@ -66,7 +63,7 @@ esp_err_t SpiMasterDevice::setup() {
 
     spi_device_interface_config_t devcfg = {
         .mode = 0, // SPI mode 0: CPOL:-0 and CPHA:-0
-        .clock_speed_hz = SPI_MASTER_FREQ_26M, // Clock out at 12 MHz
+        .clock_speed_hz = SPI_MASTER_FREQ_40M, // Clock out at 12 MHz
         .spics_io_num = PIN_NUM_CS, // This field is used to specify the GPIO pin that is to be used as CS'
         .queue_size = 7, // We want to be able to queue 7 transactions at a time
     };
@@ -102,29 +99,24 @@ esp_err_t SpiMasterDevice::setup() {
 
     //Assume the slave is ready for the first transmission: if the slave started up before us, we will not detect
     //positive edge on the handshake line.
-    //xSemaphoreGive(_semaphore);
-
     return SpiDevice::setup();
 }
 
 void SpiMasterDevice::run() {
     while (true) {
-        if (pdTRUE == xSemaphoreTake(_semaphore, portMAX_DELAY)) {
-            esp_logi(spi_master, "1");
-            spi_transaction_t spi_trans {
-                .length = RX_BUF_SIZE * SPI_BITS_PER_WORD,
-                .tx_buffer = getNextTxBuffer(),
-                .rx_buffer = heap_caps_malloc(RX_BUF_SIZE, MALLOC_CAP_DMA),
-            };
-            memset(spi_trans.rx_buffer, 0, RX_BUF_SIZE);
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        spi_transaction_t spi_trans {
+            .length = RX_BUF_SIZE * SPI_BITS_PER_WORD,
+            .tx_buffer = getNextTxBuffer(),
+            .rx_buffer = heap_caps_malloc(RX_BUF_SIZE, MALLOC_CAP_DMA),
+        };
+        memset(spi_trans.rx_buffer, 0, RX_BUF_SIZE);
 
-            if (const auto err = spi_device_transmit(_spiDevice, &spi_trans); err != ESP_OK) {
-                esp_loge(spi_slave, "spi transmit error, err: 0x%x (%s)", err, esp_err_to_name(err));
-                free(spi_trans.rx_buffer);
-                free((void *) spi_trans.tx_buffer);
-                continue;
-            }
-
+        if (auto err = spi_device_transmit(_spiDevice, &spi_trans); err != ESP_OK) {
+            esp_loge(spi_master, "spi transmit error, err: 0x%x (%s)", err, esp_err_to_name(err));
+            free(spi_trans.rx_buffer);
+            free((void *) spi_trans.tx_buffer);
+        } else {
             /* Free any tx buffer, data is not relevant anymore */
             if (spi_trans.tx_buffer) {
                 free(const_cast<void *>(spi_trans.tx_buffer));
@@ -134,7 +126,7 @@ void SpiMasterDevice::run() {
             if (spi_trans.rx_buffer) {
                 SpiMessage rx_buf_handle{};
                 unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
-                if (auto err = postRxBuffer(&rx_buf_handle); err != ESP_OK) {
+                if (err = postRxBuffer(&rx_buf_handle); err != ESP_OK) {
                     free(spi_trans.rx_buffer);
                 }
             }
@@ -144,29 +136,22 @@ void SpiMasterDevice::run() {
 
 void SpiMasterDevice::destroy() {
     SpiDevice::destroy();
-    vSemaphoreDelete(_semaphore);
 }
 
-SpiMasterDevice::SpiMasterDevice(spi_host_device_t device) : _spi(device), _semaphore(nullptr) {
+SpiMasterDevice::SpiMasterDevice(spi_host_device_t device) : _spi(device) {
 }
 
 void *SpiMasterDevice::getNextTxBuffer() const {
     SpiMessage buf_handle{0};
-    esp_err_t ret = ESP_OK;
+    BaseType_t ret = pdFAIL;
 
     /* Get or create new tx_buffer
      *	1. Check if SPI TX queue has pending buffers. Return if valid buffer is obtained.
      *	2. Create a new empty tx buffer and return */
-
-    /* Get buffer from SPI Tx queue */
-    if (uxQueueMessagesWaiting(getTxQueue(PRIO_Q_HIGH))) {
-        ret = xQueueReceive(getTxQueue(PRIO_Q_HIGH), &buf_handle, portMAX_DELAY);
-    } else if (uxQueueMessagesWaiting(getTxQueue(PRIO_Q_MID))) {
-        ret = xQueueReceive(getTxQueue(PRIO_Q_MID), &buf_handle, portMAX_DELAY);
-    } else if (uxQueueMessagesWaiting(getTxQueue(PRIO_Q_LOW))) {
-        ret = xQueueReceive(getTxQueue(PRIO_Q_LOW), &buf_handle, portMAX_DELAY);
-    } else {
-        ret = pdFALSE;
+    for (int idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
+        if (ret = xQueueReceive(getTxQueue(idx), &buf_handle, 0); ret == pdTRUE) {
+            break;
+        }
     }
 
     if (ret == pdTRUE && buf_handle.payload) {
@@ -176,10 +161,9 @@ void *SpiMasterDevice::getNextTxBuffer() const {
     // /* Create empty dummy buffer */
     void *sendbuf = heap_caps_malloc(RX_BUF_SIZE, MALLOC_CAP_DMA);
     if (!sendbuf) {
-        esp_logi(spi_slave, "Failed to allocate memory for dummy transaction");
+        esp_logi(spi_master, "Failed to allocate memory for dummy transaction");
         return nullptr;
     }
-    esp_logi(spi_slave, "dummy tx buffer");
     memset(sendbuf, 0, RX_BUF_SIZE);
     return sendbuf;
 }
@@ -259,6 +243,7 @@ esp_err_t SpiMasterDevice::writeData(const SpiMessage *buffer) {
 
     tx_buf_handle.payload = heap_caps_malloc(total_len, MALLOC_CAP_DMA);
     assert(tx_buf_handle.payload);
+    memset(tx_buf_handle.payload, 0, total_len);
 
     /* Initialize header */
     auto *header = static_cast<struct SpiHeader *>(tx_buf_handle.payload);
@@ -290,30 +275,20 @@ esp_err_t SpiMasterDevice::writeData(const SpiMessage *buffer) {
 
     // After CS' is high, the slave sill get unselected
     gpio_set_level(PIN_NUM_CS, 1);
-    xSemaphoreGive(_semaphore);
+    xTaskNotifyGive(getTaskHandle());
 
     return ESP_OK;
 }
 
 esp_err_t SpiMasterDevice::readData(SpiMessage *buffer) {
-    esp_err_t ret = ESP_OK;
-
     while (true) {
-        if (uxQueueMessagesWaiting(getRxQueue(PRIO_Q_HIGH))) {
-            ret = xQueueReceive(getRxQueue(PRIO_Q_HIGH), buffer, portMAX_DELAY);
-            break;
-        } else if (uxQueueMessagesWaiting(getRxQueue(PRIO_Q_MID))) {
-            ret = xQueueReceive(getRxQueue(PRIO_Q_MID), buffer, portMAX_DELAY);
-            break;
-        } else if (uxQueueMessagesWaiting(getRxQueue(PRIO_Q_LOW))) {
-            ret = xQueueReceive(getRxQueue(PRIO_Q_LOW), buffer, portMAX_DELAY);
-            break;
-        } else {
-            vTaskDelay(1);
+        for (int idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
+            if (xQueueReceive(getRxQueue(idx), buffer, 0)) {
+                return ESP_OK;
+            }
         }
+        vTaskDelay(1);
     }
-
-    return ret != pdTRUE ? ESP_FAIL : ESP_OK;
 }
 
 SpiMasterDevice::~SpiMasterDevice() {

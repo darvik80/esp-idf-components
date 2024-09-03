@@ -77,7 +77,8 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
         esp_logi(spi, "run %s, slave mode", getServiceName().data());
         _spi = new SpiSlaveDevice(props.device);
 
-        std::string msg = "Init message from SLAVE";
+        std::string msg = "Init message from SLAVE: ";
+        msg += std::to_string(esp_timer_get_time());
         SpiMessage buf{
             SpiHeader{
                 .if_type = ESP_INTERNAL_IF,
@@ -127,7 +128,8 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
                 buf.length = buf.payload_len;
                 esp_logi(spi, "Send: %s", ping.c_str());
                 _spi->writeData(&buf);
-                vTaskDelay(pdMS_TO_TICKS(10000));
+                //vTaskDelay(pdMS_TO_TICKS(10000));
+                vTaskDelay(1);
             }
         }, "tester", 4096);
     }
