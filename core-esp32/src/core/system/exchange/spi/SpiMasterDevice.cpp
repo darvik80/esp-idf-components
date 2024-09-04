@@ -9,41 +9,44 @@
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
 
+#define HANDSHAKE_BIT 0x01
+#define DATA_READY_BIT 0x02
+
 void IRAM_ATTR SpiMasterDevice::gpio_handshake_isr_handler(void *arg) {
-    //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
-    //looking at the time between interrupts and refusing any interrupt too close to another one.
-    static uint32_t lasthandshaketime_us;
-    uint32_t currtime_us = esp_timer_get_time();
-    uint32_t diff = currtime_us - lasthandshaketime_us;
-    if (diff < 1000) {
-        return; //ignore everything <1ms after an earlier irq
-    }
-    lasthandshaketime_us = currtime_us;
+    // //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
+    // //looking at the time between interrupts and refusing any interrupt too close to another one.
+    // static uint32_t lasthandshaketime_us;
+    // uint32_t currtime_us = esp_timer_get_time();
+    // uint32_t diff = currtime_us - lasthandshaketime_us;
+    // if (diff < 1000) {
+    //     return; //ignore everything <1ms after an earlier irq
+    // }
+    // lasthandshaketime_us = currtime_us;
 
     //Give the semaphore.
     auto *self = static_cast<SpiMasterDevice *>(arg);
     BaseType_t mustYield = false;
-    vTaskNotifyGiveFromISR(self->getTaskHandle(), &mustYield);
+    xEventGroupSetBitsFromISR(self->_events, HANDSHAKE_BIT, &mustYield);
     if (mustYield) {
         portYIELD_FROM_ISR(mustYield);
     }
 }
 
 void IRAM_ATTR SpiMasterDevice::gpio_ready_data_isr_handler(void *arg) {
-    //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
-    //looking at the time between interrupts and refusing any interrupt too close to another one.
-    static uint32_t lasthandshaketime_us;
-    uint32_t currtime_us = esp_timer_get_time();
-    uint32_t diff = currtime_us - lasthandshaketime_us;
-    if (diff < 1000) {
-        return; //ignore everything <1ms after an earlier irq
-    }
-    lasthandshaketime_us = currtime_us;
+    // //Sometimes due to interference or ringing or something, we get two irqs after eachother. This is solved by
+    // //looking at the time between interrupts and refusing any interrupt too close to another one.
+    // static uint32_t lasthandshaketime_us;
+    // uint32_t currtime_us = esp_timer_get_time();
+    // uint32_t diff = currtime_us - lasthandshaketime_us;
+    // if (diff < 1000) {
+    //     return; //ignore everything <1ms after an earlier irq
+    // }
+    // lasthandshaketime_us = currtime_us;
 
     //Give the semaphore.
     auto *self = static_cast<SpiMasterDevice *>(arg);
     BaseType_t mustYield = false;
-    vTaskNotifyGiveFromISR(self->getTaskHandle(), &mustYield);
+    xEventGroupSetBitsFromISR(self->_events, DATA_READY_BIT, &mustYield);
     if (mustYield) {
         portYIELD_FROM_ISR(mustYield);
     }
@@ -59,6 +62,7 @@ esp_err_t SpiMasterDevice::setup() {
         .sclk_io_num = PIN_NUM_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
+        .isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO,
     };
 
     spi_device_interface_config_t devcfg = {
@@ -97,15 +101,20 @@ esp_err_t SpiMasterDevice::setup() {
     ESP_ERROR_CHECK(spi_bus_initialize(_spi, &buscfg, SPI_DMA_CH_AUTO)); // Initialize the SPI bus
     ESP_ERROR_CHECK(spi_bus_add_device(_spi, &devcfg, &_spiDevice)); // Attach the Slave device to the SPI bus
 
-    //Assume the slave is ready for the first transmission: if the slave started up before us, we will not detect
-    //positive edge on the handshake line.
+    _events = xEventGroupCreate();
+    // check slave transaction
     return SpiDevice::setup();
 }
 
 void SpiMasterDevice::run() {
+    uint32_t lastTime = esp_timer_get_time();
+    int bytes{0};
+    //Assume the slave is ready for the first transmission: if the slave started up before us, we will not detect
+    //positive edge on the handshake line.
+    xEventGroupSetBits(_events, HANDSHAKE_BIT | DATA_READY_BIT);
     while (true) {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        spi_transaction_t spi_trans {
+        EventBits_t res = xEventGroupWaitBits(_events, HANDSHAKE_BIT | DATA_READY_BIT, true, true, portMAX_DELAY);
+        spi_transaction_t spi_trans{
             .length = RX_BUF_SIZE * SPI_BITS_PER_WORD,
             .tx_buffer = getNextTxBuffer(),
             .rx_buffer = heap_caps_malloc(RX_BUF_SIZE, MALLOC_CAP_DMA),
@@ -124,12 +133,30 @@ void SpiMasterDevice::run() {
 
             /* Process received data */
             if (spi_trans.rx_buffer) {
-                SpiMessage rx_buf_handle{};
-                unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
-                if (err = postRxBuffer(&rx_buf_handle); err != ESP_OK) {
+                auto *header = (SpiHeader *) spi_trans.rx_buffer;
+                if (header->if_type == 0x0f && header->if_num == 0x0f) {
+                    esp_logd(spi_master, "drop dummy message");
                     free(spi_trans.rx_buffer);
+                } else {
+                    bytes += RX_BUF_SIZE;
+                    int64_t now = esp_timer_get_time();
+                    if ((now-lastTime) > 1000000) {
+                        esp_logi(spy, "%d b/s", bytes*8);
+                        lastTime=now;
+                        bytes=0;
+                    }
+
+                    SpiMessage rx_buf_handle{};
+                    unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
+                    if (err = postRxBuffer(&rx_buf_handle); err != ESP_OK) {
+                        free(spi_trans.rx_buffer);
+                    }
                 }
             }
+        }
+
+        if (gpio_get_level(PIN_NUM_MASTER_DATA_READY)) {
+            xEventGroupSetBits(_events, DATA_READY_BIT);
         }
     }
 }
@@ -138,7 +165,7 @@ void SpiMasterDevice::destroy() {
     SpiDevice::destroy();
 }
 
-SpiMasterDevice::SpiMasterDevice(spi_host_device_t device) : _spi(device) {
+SpiMasterDevice::SpiMasterDevice(spi_host_device_t device) : _spi(device), _events(nullptr) {
 }
 
 void *SpiMasterDevice::getNextTxBuffer() const {
@@ -155,6 +182,12 @@ void *SpiMasterDevice::getNextTxBuffer() const {
     }
 
     if (ret == pdTRUE && buf_handle.payload) {
+        for (int idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
+            if (uxQueueMessagesWaiting(getTxQueue(idx))) {
+                xEventGroupSetBits(_events, DATA_READY_BIT);
+                break;
+            }
+        }
         return buf_handle.payload;
     }
 
@@ -165,11 +198,17 @@ void *SpiMasterDevice::getNextTxBuffer() const {
         return nullptr;
     }
     memset(sendbuf, 0, RX_BUF_SIZE);
+    /* Initialize header */
+    auto *header = static_cast<SpiHeader *>(sendbuf);
+    /* Populate header to indicate it as a dummy buffer */
+    header->if_type = 0xF;
+    header->if_num = 0xF;
+
     return sendbuf;
 }
 
 esp_err_t SpiMasterDevice::postRxBuffer(SpiMessage *rx_buf_handle) const {
-    BaseType_t ret = ESP_OK;
+    BaseType_t ret = pdFAIL;
     if (rx_buf_handle->if_type == ESP_INTERNAL_IF) {
         ret = xQueueSend(getRxQueue(PRIO_Q_HIGH), rx_buf_handle, portMAX_DELAY);
     } else if (rx_buf_handle->if_type == ESP_HCI_IF) {
@@ -275,7 +314,8 @@ esp_err_t SpiMasterDevice::writeData(const SpiMessage *buffer) {
 
     // After CS' is high, the slave sill get unselected
     gpio_set_level(PIN_NUM_CS, 1);
-    xTaskNotifyGive(getTaskHandle());
+    //xTaskNotifyGive(getTaskHandle());
+    xEventGroupSetBits(_events, DATA_READY_BIT);
 
     return ESP_OK;
 }

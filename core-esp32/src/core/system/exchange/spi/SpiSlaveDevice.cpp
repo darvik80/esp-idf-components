@@ -6,6 +6,7 @@
 
 #include <cstring>
 #include <endian.h>
+#include <esp_timer.h>
 #include <core/Task.h>
 #include <driver/gpio.h>
 #include <driver/spi_slave.h>
@@ -35,7 +36,7 @@ esp_err_t SpiSlaveDevice::setup() {
     spi_slave_interface_config_t slvcfg = {
         .spics_io_num = PIN_NUM_CS,
         .flags = 0,
-        .queue_size = 3,
+        .queue_size = 7,
         .mode = 0,
         .post_setup_cb = postSetupCb,
         .post_trans_cb = postTransCb,
@@ -73,6 +74,8 @@ esp_err_t SpiSlaveDevice::setup() {
 }
 
 void SpiSlaveDevice::run() {
+    uint32_t lastTime = esp_timer_get_time();
+    int bytes{0};
     while (true) {
         spi_slave_transaction_t spi_trans{
             .length = RX_BUF_SIZE * SPI_BITS_PER_WORD,
@@ -80,6 +83,7 @@ void SpiSlaveDevice::run() {
             .rx_buffer = heap_caps_malloc(RX_BUF_SIZE, MALLOC_CAP_DMA),
         };
         memset(spi_trans.rx_buffer, 0, RX_BUF_SIZE);
+
         if (auto err = spi_slave_transmit(_spi, &spi_trans, portMAX_DELAY); err != ESP_OK) {
             esp_loge(spi_slave, "spi transmit error, err: 0x%x (%s)", err, esp_err_to_name(err));
             free(spi_trans.rx_buffer);
@@ -94,10 +98,23 @@ void SpiSlaveDevice::run() {
 
         /* Process received data */
         if (spi_trans.rx_buffer) {
-            SpiMessage rx_buf_handle{};
-            unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
-            if (postRxBuffer(&rx_buf_handle)) {
+            auto* header = (SpiHeader*)spi_trans.rx_buffer;
+            if (header->if_type == 0x0f && header->if_num == 0x0f) {
+                esp_logd(spi_master, "drop dummy message");
                 free(spi_trans.rx_buffer);
+            } else {
+                bytes += RX_BUF_SIZE;
+                int64_t now = esp_timer_get_time();
+                if ((now-lastTime) > 1000000) {
+                    esp_logi(spy, "%d b/s", bytes*8);
+                    lastTime=now;
+                    bytes=0;
+                }
+                SpiMessage rx_buf_handle{};
+                unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
+                if (ESP_OK != postRxBuffer(&rx_buf_handle)) {
+                    free(spi_trans.rx_buffer);
+                }
             }
         }
     }
@@ -119,7 +136,15 @@ void *SpiSlaveDevice::getNextTxBuffer() const {
     }
 
     if (ret == pdTRUE && buf_handle.payload) {
-        /* indicate waiting data on ready pin */
+        // // { Maybe better do not reset data is ready
+        // for (int idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
+        //     if (uxQueueMessagesWaiting(getTxQueue(idx))) {
+        //         return buf_handle.payload;
+        //     }
+        // }
+        //
+        // gpio_set_level(PIN_NUM_SLAVE_DATA_READY, 0);
+        // // } Maybe better do not reset data is ready
         return buf_handle.payload;
     }
 
@@ -136,7 +161,6 @@ void *SpiSlaveDevice::getNextTxBuffer() const {
     memset(sendbuf, 0, RX_BUF_SIZE);
     /* Initialize header */
     auto *header = static_cast<SpiHeader *>(sendbuf);
-
     /* Populate header to indicate it as a dummy buffer */
     header->if_type = 0xF;
     header->if_num = 0xF;
@@ -145,7 +169,7 @@ void *SpiSlaveDevice::getNextTxBuffer() const {
 }
 
 esp_err_t SpiSlaveDevice::postRxBuffer(SpiMessage *rx_buf_handle) const {
-    BaseType_t ret = ESP_OK;
+    BaseType_t ret = pdFALSE;
     if (rx_buf_handle->if_type == ESP_INTERNAL_IF) {
         ret = xQueueSend(getRxQueue(PRIO_Q_HIGH), rx_buf_handle, portMAX_DELAY);
     } else if (rx_buf_handle->if_type == ESP_HCI_IF) {
@@ -213,13 +237,12 @@ esp_err_t SpiSlaveDevice::writeData(const SpiMessage *buffer) {
         ret = xQueueSend(getTxQueue(PRIO_Q_LOW), &tx_buf_handle, portMAX_DELAY);
     }
 
-    if (ret != pdTRUE) {
-        return ESP_FAIL;
+    if (ret == pdTRUE) {
+        gpio_set_level(PIN_NUM_SLAVE_DATA_READY, 1);
     }
 
-    gpio_set_level(PIN_NUM_SLAVE_DATA_READY, 1);
 
-    return ESP_OK;
+    return ret == pdTRUE ? ESP_OK : ESP_FAIL;
 }
 
 esp_err_t SpiSlaveDevice::readData(SpiMessage *buffer) {

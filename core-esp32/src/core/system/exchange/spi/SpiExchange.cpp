@@ -45,26 +45,23 @@ void SpiExchange::setup() {
 
 void SpiExchange::process(const SpiMessage &buffer) {
     if (buffer.length && buffer.offset) {
-        esp_logi(spi, "Received Msg: %d, %d, %d, %s", buffer.payload_len, buffer.length, buffer.offset, (char*)(buffer.payload + buffer.offset));
-        if (buffer.payload_len && buffer.payload_len < RX_BUF_SIZE) {
-            std::string_view msg((char*)(buffer.payload + buffer.offset));
-            if (msg.starts_with("ping")) {
-                std::string ping = "pong from master: ";
-                ping += msg;
-                esp_logi(spi, "Send Msg: %s", ping.c_str());
-                SpiMessage buf{
-                    SpiHeader{
-                        .if_type = ESP_INTERNAL_IF,
-                        .pkt_type = PACKET_TYPE_COMMAND_RESPONSE,
-                    },
-                };
-                buf.payload = (void *) ping.data();
-                buf.payload_len = ping.size() + 1;
-                buf.length = buf.payload_len;
+//        esp_logi(spi, "Received Msg: %d, %d, %d, %s", buffer.payload_len, buffer.length, buffer.offset, (char*)(buffer.payload + buffer.offset));
+        // if (buffer.payload_len && buffer.payload_len < RX_BUF_SIZE) {
+        std::string_view msg((char*)(buffer.payload + buffer.offset));
+        if (msg.starts_with("ping")) {
+            std::string ping = "pong";
+            SpiMessage buf{
+                SpiHeader{
+                    .if_type = ESP_INTERNAL_IF,
+                    .pkt_type = PACKET_TYPE_COMMAND_RESPONSE,
+                },
+            };
+            buf.payload = (void *) ping.data();
+            buf.payload_len = ping.size() + 1;
+            buf.length = buf.payload_len;
 
-                //TODO force send data to slave
-                _spi->writeData(&buf);
-            }
+            //TODO force send data to slave
+            _spi->writeData(&buf);
         }
     }
 }
@@ -113,10 +110,9 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
 
     if (props.mode == SPI_MODE_SLAVE) {
         FreeRTOSTask::execute([this, props]() {
-            int count{0};
             vTaskDelay(pdMS_TO_TICKS(10000));
             while (true) {
-                std::string ping = "ping: " + std::to_string(++count);
+                std::string ping = "ping";
                 SpiMessage buf{
                     SpiHeader{
                         .if_type = ESP_INTERNAL_IF,
@@ -126,25 +122,11 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
                 buf.payload = (void *) ping.data();
                 buf.payload_len = ping.size() + 1;
                 buf.length = buf.payload_len;
-                esp_logi(spi, "Send: %s", ping.c_str());
+                //esp_logi(spi, "Send: %s", ping.c_str());
                 _spi->writeData(&buf);
                 //vTaskDelay(pdMS_TO_TICKS(10000));
-                vTaskDelay(1);
+                vTaskDelay(0);
             }
         }, "tester", 4096);
     }
-    // FreeRTOSTask::execute([this, props]() {
-    //     int h = gpio_get_level(PIN_NUM_MASTER_HANDSHAKE);
-    //     int r = gpio_get_level(PIN_NUM_MASTER_DATA_READY);
-    //     esp_logi(spi_master, "handshake: %d, data_ready: %d", h, r);
-    //     while (true) {
-    //         int hn = gpio_get_level(PIN_NUM_MASTER_HANDSHAKE);
-    //         int rn = gpio_get_level(PIN_NUM_MASTER_DATA_READY);
-    //         if (hn != h || rn != r) {
-    //             h = hn; r = rn;
-    //             esp_logi(spi_master, "handshake: %d, data_ready: %d", h, r);
-    //         }
-    //         vTaskDelay(1);
-    //     }
-    // }, "tester", 4096);
 }

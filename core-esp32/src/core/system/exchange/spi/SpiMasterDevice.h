@@ -15,6 +15,7 @@ class SpiMasterDevice final : public SpiDevice {
     spi_host_device_t _spi;
     struct spi_device_t *_spiDevice{nullptr};
     std::array<uint8_t, 2048> _rx{};
+    EventGroupHandle_t _events;
 protected:
     static void IRAM_ATTR gpio_handshake_isr_handler(void *arg);
     static void IRAM_ATTR gpio_ready_data_isr_handler(void *arg);
