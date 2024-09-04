@@ -115,13 +115,6 @@ public:
 
 // TODO: move config to properties file
 #define CONFIG_ESP_SPI_CHECKSUM 1
-
-// #define PRIO_Q_HIGH                     0
-// #define PRIO_Q_MID                      1
-// #define PRIO_Q_LOW                      2
-// #define MAX_PRIORITY_QUEUES             3
-//
-// TODO: move config to properties file
 #define CONFIG_SPI_RX_QUEUE_SIZE	10
 #define CONFIG_SPI_TX_QUEUE_SIZE	10
 
