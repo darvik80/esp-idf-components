@@ -103,13 +103,13 @@ void SpiSlaveDevice::run() {
                 esp_logd(spi_master, "drop dummy message");
                 free(spi_trans.rx_buffer);
             } else {
-                bytes += RX_BUF_SIZE;
-                int64_t now = esp_timer_get_time();
-                if ((now-lastTime) > 1000000) {
-                    esp_logi(spy, "%d b/s", bytes*8);
-                    lastTime=now;
-                    bytes=0;
-                }
+                // bytes += RX_BUF_SIZE;
+                // int64_t now = esp_timer_get_time();
+                // if ((now-lastTime) > 1000000) {
+                //     esp_logi(spy, "%d b/s", bytes*8);
+                //     lastTime=now;
+                //     bytes=0;
+                // }
                 SpiMessage rx_buf_handle{};
                 unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
                 if (ESP_OK != postRxBuffer(&rx_buf_handle)) {

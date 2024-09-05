@@ -44,10 +44,10 @@ void SpiExchange::setup() {
 }
 
 void SpiExchange::process(const SpiMessage &buffer) {
-    if (buffer.length && buffer.offset) {
-//        esp_logi(spi, "Received Msg: %d, %d, %d, %s", buffer.payload_len, buffer.length, buffer.offset, (char*)(buffer.payload + buffer.offset));
-        // if (buffer.payload_len && buffer.payload_len < RX_BUF_SIZE) {
-        std::string_view msg((char*)(buffer.payload + buffer.offset));
+    if (buffer.payload_len && buffer.payload_len < RX_BUF_SIZE) {
+        esp_logi(spi, "Received Msg: %d, %d, %d, %s", buffer.payload_len, buffer.length, buffer.offset,
+                 (char*)(buffer.payload + buffer.offset));
+        std::string_view msg((char *) (buffer.payload + buffer.offset));
         if (msg.starts_with("ping")) {
             std::string ping = "pong";
             SpiMessage buf{
@@ -122,10 +122,9 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
                 buf.payload = (void *) ping.data();
                 buf.payload_len = ping.size() + 1;
                 buf.length = buf.payload_len;
-                //esp_logi(spi, "Send: %s", ping.c_str());
+                esp_logi(spi, "Send: %s", ping.c_str());
                 _spi->writeData(&buf);
-                //vTaskDelay(pdMS_TO_TICKS(10000));
-                vTaskDelay(0);
+                vTaskDelay(pdMS_TO_TICKS(10000));
             }
         }, "tester", 4096);
     }

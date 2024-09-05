@@ -113,7 +113,23 @@ void SpiMasterDevice::run() {
     //positive edge on the handshake line.
     xEventGroupSetBits(_events, HANDSHAKE_BIT | DATA_READY_BIT);
     while (true) {
-        EventBits_t res = xEventGroupWaitBits(_events, HANDSHAKE_BIT | DATA_READY_BIT, true, true, portMAX_DELAY);
+        EventBits_t res = xEventGroupWaitBits(_events, HANDSHAKE_BIT | DATA_READY_BIT, true, true, pdMS_TO_TICKS(1000));
+        if ((res & (HANDSHAKE_BIT|DATA_READY_BIT)) != (HANDSHAKE_BIT | DATA_READY_BIT)) {
+            auto handshake = gpio_get_level(PIN_NUM_MASTER_HANDSHAKE);
+            auto data_ready = gpio_get_level(PIN_NUM_MASTER_DATA_READY);
+            esp_logd(spi_master, "spi waiting timeout: %d, %d", handshake, data_ready);
+            if (!handshake) {
+                esp_logd(spi_master, "slave not ready...");
+                continue;
+            }
+
+            if (!data_ready) {
+                esp_logd(spi_master, "slave is ready but no data...");
+                continue;
+            }
+
+            esp_logw(spi_master, "slave is ready and has data...");
+        }
         spi_transaction_t spi_trans{
             .length = RX_BUF_SIZE * SPI_BITS_PER_WORD,
             .tx_buffer = getNextTxBuffer(),
@@ -135,16 +151,15 @@ void SpiMasterDevice::run() {
             if (spi_trans.rx_buffer) {
                 auto *header = (SpiHeader *) spi_trans.rx_buffer;
                 if (header->if_type == 0x0f && header->if_num == 0x0f) {
-                    esp_logd(spi_master, "drop dummy message");
                     free(spi_trans.rx_buffer);
                 } else {
-                    bytes += RX_BUF_SIZE;
-                    int64_t now = esp_timer_get_time();
-                    if ((now-lastTime) > 1000000) {
-                        esp_logi(spy, "%d b/s", bytes*8);
-                        lastTime=now;
-                        bytes=0;
-                    }
+                    // bytes += RX_BUF_SIZE;
+                    // int64_t now = esp_timer_get_time();
+                    // if ((now-lastTime) > 1000000) {
+                    //     esp_logi(spy, "%d b/s", bytes*8);
+                    //     lastTime=now;
+                    //     bytes=0;
+                    // }
 
                     SpiMessage rx_buf_handle{};
                     unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
