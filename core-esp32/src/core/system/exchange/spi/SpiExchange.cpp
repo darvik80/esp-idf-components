@@ -22,7 +22,7 @@ void fromJson(cJSON *json, SpiExchangeProperties &props) {
                 } else if (0 == strcmp(item->valuestring, "SPI2")) {
                     props.device = SPI2_HOST;
 #if SOC_SPI_PERIPH_NUM > 2
-                }else if (0 == strcmp(item->valuestring, "SPI2")) {
+                }else if (0 == strcmp(item->valuestring, "SPI3")) {
                     props.device = SPI3_HOST;
 #endif
                 }
@@ -43,16 +43,17 @@ SpiExchange::SpiExchange(Registry &registry) : TService(registry) {
 void SpiExchange::setup() {
 }
 
-void SpiExchange::process(const SpiMessage &buffer) {
+void SpiExchange::process(const ExchangeMessage &buffer) {
     if (buffer.payload_len && buffer.payload_len < RX_BUF_SIZE) {
         esp_logi(spi, "Received Msg: %d, %d, %d, %s", buffer.payload_len, buffer.length, buffer.offset,
                  (char*)(buffer.payload + buffer.offset));
         std::string_view msg((char *) (buffer.payload + buffer.offset));
         if (msg.starts_with("ping")) {
             std::string ping = "pong";
-            SpiMessage buf{
-                SpiHeader{
+            ExchangeMessage buf{
+                ExchangeHeader{
                     .if_type = ESP_INTERNAL_IF,
+                    .if_num = 0x02,
                     .pkt_type = PACKET_TYPE_COMMAND_RESPONSE,
                 },
             };
@@ -64,21 +65,23 @@ void SpiExchange::process(const SpiMessage &buffer) {
             _spi->writeData(&buf);
         }
     }
+    onMessage(buffer);
 }
 
 void SpiExchange::apply(const SpiExchangeProperties &props) {
     if (props.mode == SPI_MODE_MASTER) {
-        esp_logi(spi, "run %s, master mode", getServiceName().data());
+        esp_logi(spi, "run %s, master mode, spi: %d", getServiceName().data(), props.device+1);
         _spi = new SpiMasterDevice(props.device);
     } else {
-        esp_logi(spi, "run %s, slave mode", getServiceName().data());
+        esp_logi(spi, "run %s, slave mode, spi: %d", getServiceName().data(), props.device+1);
         _spi = new SpiSlaveDevice(props.device);
 
         std::string msg = "Init message from SLAVE: ";
         msg += std::to_string(esp_timer_get_time());
-        SpiMessage buf{
-            SpiHeader{
+        ExchangeMessage buf{
+            ExchangeHeader{
                 .if_type = ESP_INTERNAL_IF,
+                .if_num = 0x04,
                 .pkt_type = PACKET_TYPE_COMMAND_REQUEST,
             },
         };
@@ -93,7 +96,7 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
 
     FreeRTOSTask::execute(
         [this] {
-            SpiMessage buf_handle{};
+            ExchangeMessage buf_handle{};
 
             for (;;) {
                 if (ESP_FAIL == _spi->readData(&buf_handle)) {
@@ -113,9 +116,10 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
             vTaskDelay(pdMS_TO_TICKS(10000));
             while (true) {
                 std::string ping = "ping";
-                SpiMessage buf{
-                    SpiHeader{
+                ExchangeMessage buf{
+                    ExchangeHeader{
                         .if_type = ESP_INTERNAL_IF,
+                        .if_num = 0x08,
                         .pkt_type = PACKET_TYPE_COMMAND_REQUEST,
                     },
                 };
@@ -128,4 +132,12 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
             }
         }, "tester", 4096);
     }
+}
+
+void SpiExchange::send(const ExchangeMessage &msg) {
+    _spi->writeData(&msg);
+}
+
+void SpiExchange::onMessage(const ExchangeMessage &msg) {
+
 }

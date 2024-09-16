@@ -21,7 +21,7 @@ private:
     static void postTransCb(spi_slave_transaction_t *trans);
 
 protected:
-    esp_err_t postRxBuffer(SpiMessage *buf_handle) const;
+    esp_err_t postRxBuffer(ExchangeMessage *buf_handle) const;
 
     void *getNextTxBuffer() const;
 
@@ -36,9 +36,9 @@ public:
 
     void destroy() override;
 
-    esp_err_t writeData(const SpiMessage *buffer) override;
+    esp_err_t writeData(const ExchangeMessage *buffer) override;
 
-    esp_err_t readData(SpiMessage *buffer) override;
+    esp_err_t readData(ExchangeMessage *buffer) override;
 };
 
 #endif //SPISLAVEDEVICE_H

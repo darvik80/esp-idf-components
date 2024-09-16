@@ -8,6 +8,7 @@
 #include <core/Registry.h>
 #include <core/system/SystemProperties.h>
 #include <core/system/SystemService.h>
+#include <core/system/exchange/Exchange.h>
 #include <hal/spi_types.h>
 
 #include "SpiDevice.h"
@@ -25,12 +26,12 @@ struct SpiExchangeProperties : TProperties<Props_Sys_Spi, Sys_Core> {
 [[maybe_unused]] void fromJson(cJSON *json, SpiExchangeProperties &props);
 
 
-class SpiExchange : public TService<SpiExchange, Service_Sys_SPIExchange, Sys_Core>,
+class SpiExchange : public Exchange, public TService<SpiExchange, Service_Sys_SPIExchange, Sys_Core>,
                     public TPropertiesConsumer<SpiExchange, SpiExchangeProperties> {
     SpiDevice *_spi{nullptr};
 
 private:
-    void process(const SpiMessage& buffer);
+    void process(const ExchangeMessage& buffer);
 public:
     explicit SpiExchange(Registry &registry);
 
@@ -41,6 +42,10 @@ public:
     void setup() override;
 
     void apply(const SpiExchangeProperties &props);
+
+    void send(const ExchangeMessage &msg) override;
+
+    void onMessage(const ExchangeMessage &msg) override;
 };
 
 #endif //SPIEXCHANGE_H

@@ -117,18 +117,18 @@ void SpiMasterDevice::run() {
         if ((res & (HANDSHAKE_BIT|DATA_READY_BIT)) != (HANDSHAKE_BIT | DATA_READY_BIT)) {
             auto handshake = gpio_get_level(PIN_NUM_MASTER_HANDSHAKE);
             auto data_ready = gpio_get_level(PIN_NUM_MASTER_DATA_READY);
-            esp_logd(spi_master, "spi waiting timeout: %d, %d", handshake, data_ready);
+            esp_logi(spi_master, "spi waiting timeout: %d, %d", handshake, data_ready);
             if (!handshake) {
-                esp_logd(spi_master, "slave not ready...");
+                esp_logi(spi_master, "slave not ready...");
                 continue;
             }
 
             if (!data_ready) {
-                esp_logd(spi_master, "slave is ready but no data...");
+                esp_logi(spi_master, "slave is ready but no data...");
                 continue;
             }
 
-            esp_logw(spi_master, "slave is ready and has data...");
+            esp_logd(spi_master, "slave is ready and has data...");
         }
         spi_transaction_t spi_trans{
             .length = RX_BUF_SIZE * SPI_BITS_PER_WORD,
@@ -137,6 +137,7 @@ void SpiMasterDevice::run() {
         };
         memset(spi_trans.rx_buffer, 0, RX_BUF_SIZE);
 
+        gpio_set_level(PIN_NUM_CS, 0); // Lower the CS' line to select the slave
         if (auto err = spi_device_transmit(_spiDevice, &spi_trans); err != ESP_OK) {
             esp_loge(spi_master, "spi transmit error, err: 0x%x (%s)", err, esp_err_to_name(err));
             free(spi_trans.rx_buffer);
@@ -149,7 +150,7 @@ void SpiMasterDevice::run() {
 
             /* Process received data */
             if (spi_trans.rx_buffer) {
-                auto *header = (SpiHeader *) spi_trans.rx_buffer;
+                auto *header = (ExchangeHeader *) spi_trans.rx_buffer;
                 if (header->if_type == 0x0f && header->if_num == 0x0f) {
                     free(spi_trans.rx_buffer);
                 } else {
@@ -161,7 +162,7 @@ void SpiMasterDevice::run() {
                     //     bytes=0;
                     // }
 
-                    SpiMessage rx_buf_handle{};
+                    ExchangeMessage rx_buf_handle{};
                     unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
                     if (err = postRxBuffer(&rx_buf_handle); err != ESP_OK) {
                         free(spi_trans.rx_buffer);
@@ -169,6 +170,7 @@ void SpiMasterDevice::run() {
                 }
             }
         }
+        gpio_set_level(PIN_NUM_CS, 1); // After CS' is high, the slave sill get unselected
 
         if (gpio_get_level(PIN_NUM_MASTER_DATA_READY)) {
             xEventGroupSetBits(_events, DATA_READY_BIT);
@@ -184,7 +186,7 @@ SpiMasterDevice::SpiMasterDevice(spi_host_device_t device) : _spi(device), _even
 }
 
 void *SpiMasterDevice::getNextTxBuffer() const {
-    SpiMessage buf_handle{0};
+    ExchangeMessage buf_handle{0};
     BaseType_t ret = pdFAIL;
 
     /* Get or create new tx_buffer
@@ -214,7 +216,7 @@ void *SpiMasterDevice::getNextTxBuffer() const {
     }
     memset(sendbuf, 0, RX_BUF_SIZE);
     /* Initialize header */
-    auto *header = static_cast<SpiHeader *>(sendbuf);
+    auto *header = static_cast<ExchangeHeader *>(sendbuf);
     /* Populate header to indicate it as a dummy buffer */
     header->if_type = 0xF;
     header->if_num = 0xF;
@@ -222,7 +224,7 @@ void *SpiMasterDevice::getNextTxBuffer() const {
     return sendbuf;
 }
 
-esp_err_t SpiMasterDevice::postRxBuffer(SpiMessage *rx_buf_handle) const {
+esp_err_t SpiMasterDevice::postRxBuffer(ExchangeMessage *rx_buf_handle) const {
     BaseType_t ret = pdFAIL;
     if (rx_buf_handle->if_type == ESP_INTERNAL_IF) {
         ret = xQueueSend(getRxQueue(PRIO_Q_HIGH), rx_buf_handle, portMAX_DELAY);
@@ -270,16 +272,15 @@ void SpiMasterDevice::queueNextTransaction() const {
     }
 }
 
-esp_err_t SpiMasterDevice::writeData(const SpiMessage *buffer) {
-    gpio_set_level(PIN_NUM_CS, 0); // Lower the CS' line to select the slave
-    SpiMessage tx_buf_handle = {0};
+esp_err_t SpiMasterDevice::writeData(const ExchangeMessage *buffer) {
+    ExchangeMessage tx_buf_handle = {0};
 
-    uint16_t offset = sizeof(SpiHeader);
+    uint16_t offset = sizeof(ExchangeHeader);
     uint16_t total_len = buffer->length + offset;
 
     /* make the adresses dma aligned */
-    if (!IS_SPI_DMA_ALIGNED(total_len)) {
-        MAKE_SPI_DMA_ALIGNED(total_len);
+    if (!IS_DMA_ALIGNED(total_len)) {
+        MAKE_DMA_ALIGNED(total_len);
     }
 
     if (total_len > RX_BUF_SIZE) {
@@ -300,7 +301,7 @@ esp_err_t SpiMasterDevice::writeData(const SpiMessage *buffer) {
     memset(tx_buf_handle.payload, 0, total_len);
 
     /* Initialize header */
-    auto *header = static_cast<struct SpiHeader *>(tx_buf_handle.payload);
+    auto *header = static_cast<struct ExchangeHeader *>(tx_buf_handle.payload);
     header->if_type = buffer->if_type;
     header->if_num = buffer->if_num;
     header->length = buffer->length;
@@ -327,15 +328,13 @@ esp_err_t SpiMasterDevice::writeData(const SpiMessage *buffer) {
         return ESP_FAIL;
     }
 
-    // After CS' is high, the slave sill get unselected
-    gpio_set_level(PIN_NUM_CS, 1);
     //xTaskNotifyGive(getTaskHandle());
     xEventGroupSetBits(_events, DATA_READY_BIT);
 
     return ESP_OK;
 }
 
-esp_err_t SpiMasterDevice::readData(SpiMessage *buffer) {
+esp_err_t SpiMasterDevice::readData(ExchangeMessage *buffer) {
     while (true) {
         for (int idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
             if (xQueueReceive(getRxQueue(idx), buffer, 0)) {

@@ -6,8 +6,8 @@
 
 #include <sys/unistd.h>
 
-void SpiDevice::unpackBuffer(void* payload, SpiMessage &msg) {
-    const auto *header = static_cast<struct SpiHeader *>(payload);
+void SpiDevice::unpackBuffer(void* payload, ExchangeMessage &msg) {
+    const auto *header = static_cast<struct ExchangeHeader *>(payload);
     msg.if_type = header->if_type;
     msg.if_num = header->if_num,
     msg.offset = header->offset,
@@ -18,10 +18,10 @@ void SpiDevice::unpackBuffer(void* payload, SpiMessage &msg) {
 
 SpiDevice::SpiDevice() {
     for (size_t idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
-        _rx_queue[idx] = xQueueCreate(CONFIG_SPI_RX_QUEUE_SIZE, sizeof(SpiMessage));
+        _rx_queue[idx] = xQueueCreate(CONFIG_SPI_RX_QUEUE_SIZE, sizeof(ExchangeMessage));
         assert(_rx_queue[idx] != nullptr);
 
-        _tx_queue[idx] = xQueueCreate(CONFIG_SPI_TX_QUEUE_SIZE, sizeof(SpiMessage));
+        _tx_queue[idx] = xQueueCreate(CONFIG_SPI_TX_QUEUE_SIZE, sizeof(ExchangeMessage));
         assert(_tx_queue[idx] != nullptr);
     }
 }
