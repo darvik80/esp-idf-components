@@ -34,6 +34,7 @@ else ()
             src/core/system/ota/*.cpp
             src/core/system/exchange/*.cpp
             src/core/system/exchange/spi/*.cpp
+            src/core/system/exchange/i2c/*.cpp
             src/core/system/exchange/uart/*.cpp
             src/core/system/storage/*.cpp
     )

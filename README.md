@@ -1,4 +1,5 @@
 # Darvik esp-idf framework
+
 ## core-esp32
 Small framework for quick build your esp32 application
 
@@ -77,3 +78,9 @@ extern "C" void app_main() {
 
 ## bluetooth scanner 
 Component for support barcode scanners via spp, hid protocols
+
+
+# TODO
+* Support setup via 2 steps
+    * Setup basic objects: wifi, mqtt
+    * Continue setup after receive configuration from cloud

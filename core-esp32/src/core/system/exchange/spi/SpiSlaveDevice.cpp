@@ -98,7 +98,7 @@ void SpiSlaveDevice::run() {
 
         /* Process received data */
         if (spi_trans.rx_buffer) {
-            auto* header = (SpiHeader*)spi_trans.rx_buffer;
+            auto* header = (ExchangeHeader*)spi_trans.rx_buffer;
             if (header->if_type == 0x0f && header->if_num == 0x0f) {
                 esp_logd(spi_master, "drop dummy message");
                 free(spi_trans.rx_buffer);
@@ -110,7 +110,7 @@ void SpiSlaveDevice::run() {
                 //     lastTime=now;
                 //     bytes=0;
                 // }
-                SpiMessage rx_buf_handle{};
+                ExchangeMessage rx_buf_handle{};
                 unpackBuffer(spi_trans.rx_buffer, rx_buf_handle);
                 if (ESP_OK != postRxBuffer(&rx_buf_handle)) {
                     free(spi_trans.rx_buffer);
@@ -121,7 +121,7 @@ void SpiSlaveDevice::run() {
 }
 
 void *SpiSlaveDevice::getNextTxBuffer() const {
-    SpiMessage buf_handle{0};
+    ExchangeMessage buf_handle{0};
     BaseType_t ret = pdFALSE;
 
     /* Get or create new tx_buffer
@@ -160,7 +160,7 @@ void *SpiSlaveDevice::getNextTxBuffer() const {
 
     memset(sendbuf, 0, RX_BUF_SIZE);
     /* Initialize header */
-    auto *header = static_cast<SpiHeader *>(sendbuf);
+    auto *header = static_cast<ExchangeHeader *>(sendbuf);
     /* Populate header to indicate it as a dummy buffer */
     header->if_type = 0xF;
     header->if_num = 0xF;
@@ -168,7 +168,7 @@ void *SpiSlaveDevice::getNextTxBuffer() const {
     return sendbuf;
 }
 
-esp_err_t SpiSlaveDevice::postRxBuffer(SpiMessage *rx_buf_handle) const {
+esp_err_t SpiSlaveDevice::postRxBuffer(ExchangeMessage *rx_buf_handle) const {
     BaseType_t ret = pdFALSE;
     if (rx_buf_handle->if_type == ESP_INTERNAL_IF) {
         ret = xQueueSend(getRxQueue(PRIO_Q_HIGH), rx_buf_handle, portMAX_DELAY);
@@ -185,15 +185,15 @@ SpiSlaveDevice::SpiSlaveDevice(spi_host_device_t device)
     : _spi(device) {
 }
 
-esp_err_t SpiSlaveDevice::writeData(const SpiMessage *buffer) {
-    SpiMessage tx_buf_handle = {0};
+esp_err_t SpiSlaveDevice::writeData(const ExchangeMessage *buffer) {
+    ExchangeMessage tx_buf_handle = {0};
 
-    uint16_t offset = sizeof(SpiHeader);
+    uint16_t offset = sizeof(ExchangeHeader);
     uint16_t total_len = buffer->length + offset;
 
     /* make the adresses dma aligned */
-    if (!IS_SPI_DMA_ALIGNED(total_len)) {
-        MAKE_SPI_DMA_ALIGNED(total_len);
+    if (!IS_DMA_ALIGNED(total_len)) {
+        MAKE_DMA_ALIGNED(total_len);
     }
 
     if (total_len > RX_BUF_SIZE) {
@@ -214,7 +214,7 @@ esp_err_t SpiSlaveDevice::writeData(const SpiMessage *buffer) {
     memset(tx_buf_handle.payload, 0, total_len);
 
     /* Initialize header */
-    auto *header = static_cast<SpiHeader *>(tx_buf_handle.payload);
+    auto *header = static_cast<ExchangeHeader *>(tx_buf_handle.payload);
     header->if_type = buffer->if_type;
     header->if_num = buffer->if_num;
     header->offset = offset;
@@ -245,7 +245,7 @@ esp_err_t SpiSlaveDevice::writeData(const SpiMessage *buffer) {
     return ret == pdTRUE ? ESP_OK : ESP_FAIL;
 }
 
-esp_err_t SpiSlaveDevice::readData(SpiMessage *buffer) {
+esp_err_t SpiSlaveDevice::readData(ExchangeMessage *buffer) {
     while (true) {
         for (int idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
             if (xQueueReceive(getRxQueue(idx), buffer, 0)) {

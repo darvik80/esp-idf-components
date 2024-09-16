@@ -21,7 +21,7 @@ protected:
     static void IRAM_ATTR gpio_ready_data_isr_handler(void *arg);
     void run() override;
 
-    esp_err_t postRxBuffer(SpiMessage *rx_buf_handle) const;
+    esp_err_t postRxBuffer(ExchangeMessage *rx_buf_handle) const;
 
     void *getNextTxBuffer() const;
 
@@ -34,9 +34,9 @@ public:
 
     void destroy() override;
 
-    esp_err_t writeData(const SpiMessage *buffer) override;
+    esp_err_t writeData(const ExchangeMessage *buffer) override;
 
-    esp_err_t readData(SpiMessage *buffer) override;
+    esp_err_t readData(ExchangeMessage *buffer) override;
 
     ~SpiMasterDevice() override;
 };
