@@ -10,7 +10,7 @@
 #include <core/Registry.h>
 #include <core/system/SystemProperties.h>
 #include <core/system/SystemService.h>
-#include <core/system/exchange/Exchange.h>
+#include <exchange/Exchange.h>
 
 enum spi_mode {
     SPI_MODE_MASTER,

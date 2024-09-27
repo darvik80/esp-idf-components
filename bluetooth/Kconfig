@@ -1,4 +1,4 @@
-menu "bluetooth-support"
+menu "Darvik:Bluetooth"
     config BLE_BEACON_ENABLE
         bool "Enable Beacons support"
         default y
@@ -6,5 +6,4 @@ menu "bluetooth-support"
 
         help
             Enable BLE-Beacon module
-
 endmenu

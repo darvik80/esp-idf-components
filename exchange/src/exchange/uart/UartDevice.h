@@ -8,7 +8,7 @@
 
 #ifdef CONFIG_EXCHANGE_BUS_UART
 
-#include <core/system/exchange/Exchange.h>
+#include <exchange/Exchange.h>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>

@@ -1,0 +1,256 @@
+menu "Darvik:Exchange"
+    choice Bus
+        prompt "Exchange bus"
+        default EXCHANGE_BUS_UART
+        help
+            Please select exchange bus
+
+        config EXCHANGE_BUS_UART
+            bool "UART exchange"
+            help
+                UART exchange bus
+
+        config EXCHANGE_BUS_SPI
+            bool "SPI exchange"
+            help
+                SPI exchange bus
+
+        config EXCHANGE_BUS_I2C
+            bool "I2C exchange"
+            help
+                I2C exchange bus
+    endchoice
+
+    choice Uart
+        prompt "UART num"
+        default EXCHANGE_BUS_UART_NUM1
+        depends on EXCHANGE_BUS_UART
+        help
+            Please select UART Number
+
+        config EXCHANGE_BUS_UART_NUM0
+            bool "UART0"
+        config EXCHANGE_BUS_UART_NUM1
+            bool "UART1"
+    endchoice
+
+    config EXCHANGE_BUS_UART_NUM
+        int
+        default 0 if EXCHANGE_BUS_UART_NUM0
+        default 1 if EXCHANGE_BUS_UART_NUM1
+
+    config EXCHANGE_BUS_UART_RX_PIN
+        int "UART RX pin"
+        depends on EXCHANGE_BUS_UART
+        default 20
+    config EXCHANGE_BUS_UART_TX_PIN
+        int "UART TX pin"
+        depends on EXCHANGE_BUS_UART
+        default 21
+
+    choice EXCHANGE_BUS_UART_BAUD_RATE_INT
+        prompt "UART baud rate"
+        default EXCHANGE_BUS_UART_BAUD_RATE_1500000
+        depends on EXCHANGE_BUS_UART
+        help
+            Please baud rate
+        config EXCHANGE_BUS_UART_BAUD_RATE_9600
+            bool "9600"
+        config EXCHANGE_BUS_UART_BAUD_RATE_19200
+            bool "19200"
+        config EXCHANGE_BUS_UART_BAUD_RATE_28800
+            bool "28800"
+        config EXCHANGE_BUS_UART_BAUD_RATE_38400
+            bool "38400"
+        config EXCHANGE_BUS_UART_BAUD_RATE_57600
+            bool "57600"
+        config EXCHANGE_BUS_UART_BAUD_RATE_76800
+            bool "76800"
+        config EXCHANGE_BUS_UART_BAUD_RATE_115200
+            bool "115200"
+        config EXCHANGE_BUS_UART_BAUD_RATE_230400
+            bool "230400"
+        config EXCHANGE_BUS_UART_BAUD_RATE_460800
+            bool "460800"
+        config EXCHANGE_BUS_UART_BAUD_RATE_576000
+            bool "576000"
+        config EXCHANGE_BUS_UART_BAUD_RATE_921600
+            bool "921600"
+        config EXCHANGE_BUS_UART_BAUD_RATE_1500000
+            bool "1500000"
+        config EXCHANGE_BUS_UART_BAUD_RATE_5000000
+            bool "5000000"
+    endchoice
+
+    config EXCHANGE_BUS_UART_BAUD_RATE
+        int
+        default 9600 if EXCHANGE_BUS_UART_BAUD_RATE_9600
+        default 19200 if EXCHANGE_BUS_UART_BAUD_RATE_19200
+        default 28800 if EXCHANGE_BUS_UART_BAUD_RATE_28800
+        default 38400 if EXCHANGE_BUS_UART_BAUD_RATE_38400
+        default 57600 if EXCHANGE_BUS_UART_BAUD_RATE_57600
+        default 76800 if EXCHANGE_BUS_UART_BAUD_RATE_76800
+        default 115200 if EXCHANGE_BUS_UART_BAUD_RATE_115200
+        default 230400 if EXCHANGE_BUS_UART_BAUD_RATE_230400
+        default 460800 if EXCHANGE_BUS_UART_BAUD_RATE_460800
+        default 576000 if EXCHANGE_BUS_UART_BAUD_RATE_576000
+        default 921600 if EXCHANGE_BUS_UART_BAUD_RATE_921600
+        default 1500000 if EXCHANGE_BUS_UART_BAUD_RATE_1500000
+        default 5000000 if EXCHANGE_BUS_UART_BAUD_RATE_5000000
+
+    config EXCHANGE_BUS_I2C_SDA_PIN
+        int "I2C SDA pin"
+        depends on EXCHANGE_BUS_I2C
+        default 8
+    config EXCHANGE_BUS_I2C_SCL_PIN
+        int "I2C SCL pin"
+        depends on EXCHANGE_BUS_I2C
+        default 9
+    config EXCHANGE_BUS_I2C_DEVICE_ADDR
+        hex "I2C Device address"
+        depends on EXCHANGE_BUS_I2C
+        default 0xAD
+
+    choice EXCHANGE_BUS_I2C_SCL_SPEED_FREQ_INT
+        prompt "I2C SCL Speed Freq"
+        default EXCHANGE_BUS_I2C_SCL_SPEED_FREQ_100000
+        depends on EXCHANGE_BUS_I2C
+        help
+            Please set mode
+
+        config EXCHANGE_BUS_I2C_SCL_SPEED_FREQ_100000
+            bool "100k hz"
+        config EXCHANGE_BUS_I2C_SCL_SPEED_FREQ_400000
+            bool "400k hz"
+    endchoice
+
+    config EXCHANGE_BUS_I2C_SCL_SPEED_FREQ
+        int
+        default 1000000 if EXCHANGE_BUS_I2C_SCL_SPEED_FREQ_100000
+        default 4000000 if EXCHANGE_BUS_I2C_SCL_SPEED_FREQ_400000
+
+
+    choice EXCHANGE_BUS_SPI_MODE_INT
+        prompt "SPI Mode"
+        default EXCHANGE_BUS_SPI_MASTER_MODE
+        depends on EXCHANGE_BUS_SPI
+        help
+            Please set mode
+
+        config EXCHANGE_BUS_SPI_MASTER_MODE
+            bool "Master mode"
+            help
+                Master mode
+        config EXCHANGE_BUS_SPI_SLAVE_MODE
+            bool "Slave mode"
+            help
+                Slave mode
+    endchoice
+
+    choice SPI-Channel
+        prompt "SPI Channel"
+        default EXCHANGE_BUS_SPI_CHANNEL_2 if CONFIG_IDF_TARGET_ESP32C3
+        default EXCHANGE_BUS_SPI_CHANNEL_3 if CONFIG_IDF_TARGET_ESP32S3
+        depends on EXCHANGE_BUS_SPI
+        help
+            Please set mode
+        config EXCHANGE_BUS_SPI_CHANNEL_1
+            bool "SPI1"
+        config EXCHANGE_BUS_SPI_CHANNEL_2
+            bool "SPI2"
+        config EXCHANGE_BUS_SPI_CHANNEL_3
+            bool "SPI3"
+            depends on CONFIG_IDF_TARGET_ESP32S3
+    endchoice
+
+    config EXCHANGE_BUS_SPI_CHANNEL
+        int
+        default 1 if EXCHANGE_BUS_SPI_CHANNEL_2
+        default 2 if EXCHANGE_BUS_SPI_CHANNEL_3
+
+    choice SPI-Freq
+        prompt "SPI Master freq"
+        default EXCHANGE_BUS_SPI_MASTER_FREQ_80M
+        depends on EXCHANGE_BUS_SPI && EXCHANGE_BUS_SPI_MASTER_MODE
+        help
+            Please set master freq
+        config EXCHANGE_BUS_SPI_MASTER_FREQ_80M
+            bool "80MHz"
+        config EXCHANGE_BUS_SPI_MASTER_FREQ_40M
+            bool "40MHz"
+        config EXCHANGE_BUS_SPI_MASTER_FREQ_26M
+            bool "26.67MHz"
+        config EXCHANGE_BUS_SPI_CHANNEL_FREQ_20M
+            bool "20MHz"
+        config EXCHANGE_BUS_SPI_CHANNEL_FREQ_16M
+            bool "16MHz"
+        config EXCHANGE_BUS_SPI_CHANNEL_FREQ_13M
+            bool "13.33MHz"
+        config EXCHANGE_BUS_SPI_CHANNEL_FREQ_11M
+            bool "11.43MHz"
+        config EXCHANGE_BUS_SPI_CHANNEL_FREQ_10M
+            bool "10MHz"
+        config EXCHANGE_BUS_SPI_CHANNEL_FREQ_9M
+            bool "8.89MHz"
+        config EXCHANGE_BUS_SPI_CHANNEL_FREQ_8M
+            bool "8MHz"
+    endchoice
+
+    config EXCHANGE_BUS_SPI_MASTER_FREQ
+        int
+        default 8000000 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_8M
+        default 8888888 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_9M
+        default 10000000 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_10M
+        default 11428571 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_11M
+        default 13333333 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_13M
+        default 16000000 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_16M
+        default 20000000 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_20M
+        default 26666666 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_26M
+        default 40000000 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_40M
+        default 80000000 if EXCHANGE_BUS_SPI_CHANNEL_FREQ_80M
+
+    config EXCHANGE_BUS_SPI_MISO_PIN
+        int "SPI MISO pin"
+        depends on EXCHANGE_BUS_SPI
+        default 5 if IDF_TARGET_ESP32C3
+        default 19 if IDF_TARGET_ESP32S3
+    config EXCHANGE_BUS_SPI_MOSI_PIN
+        int "SPI MOSI pin"
+        depends on EXCHANGE_BUS_SPI
+        default 6 if IDF_TARGET_ESP32C3
+        default 38 if IDF_TARGET_ESP32S3
+    config EXCHANGE_BUS_SPI_CLK_PIN
+        int "SPI Clock pin"
+        depends on EXCHANGE_BUS_SPI
+        default 4 if IDF_TARGET_ESP32C3
+        default 18 if IDF_TARGET_ESP32S3
+    config EXCHANGE_BUS_SPI_CS_PIN
+        int "SPI CS pin"
+        depends on EXCHANGE_BUS_SPI
+        default 7 if IDF_TARGET_ESP32C3
+        default 05 if IDF_TARGET_ESP32S3
+
+    config EXCHANGE_BUS_SPI_HANDSHAKE_PIN
+        int "SPI Handshake pin"
+        depends on EXCHANGE_BUS_SPI
+        default 8
+
+    config EXCHANGE_BUS_SPI_DATA_READY_PIN
+        int "SPI Data ready pin"
+        depends on EXCHANGE_BUS_SPI
+        default 9
+
+    config EXCHANGE_BUS_BUFFER
+        int "Buffer size"
+        default 1600 if EXCHANGE_BUS_UART
+        default 1600 if EXCHANGE_BUS_SPI
+        default 1024 if EXCHANGE_BUS_I2C
+
+    config EXCHANGE_BUS_RX_QUEUE_SIZE
+        int "RX Queue size"
+        default 10
+    config EXCHANGE_BUS_TX_QUEUE_SIZE
+        int "TX Queue size"
+        default 10
+
+endmenu

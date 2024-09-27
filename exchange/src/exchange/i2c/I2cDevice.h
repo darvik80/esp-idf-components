@@ -6,7 +6,7 @@
 
 #include <sdkconfig.h>
 #ifdef CONFIG_EXCHANGE_BUS_I2C
-#include <core/system/exchange/Exchange.h>
+#include <exchange/Exchange.h>
 
 #include <soc/gpio_num.h>
 

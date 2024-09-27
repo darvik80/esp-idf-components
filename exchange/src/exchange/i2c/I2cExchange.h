@@ -12,8 +12,8 @@
 #include <core/system/SystemProperties.h>
 #include <core/system/SystemService.h>
 
-#include "core/system/exchange/Exchange.h"
-#include "core/system/exchange/i2c/I2cDevice.h"
+#include "exchange/Exchange.h"
+#include "exchange/i2c/I2cDevice.h"
 
 struct I2cExchangeProperties : TProperties<Props_Sys_I2c, Sys_Core> {
     i2c_mode_t mode;
