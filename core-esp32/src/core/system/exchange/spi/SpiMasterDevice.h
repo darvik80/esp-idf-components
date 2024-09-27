@@ -2,41 +2,36 @@
 // Created by Ivan Kishchenko on 29/8/24.
 //
 
-#ifndef SPIMASTERDEVICE_H
-#define SPIMASTERDEVICE_H
+#pragma once
+
+#include <sdkconfig.h>
+#include <core/system/exchange/Exchange.h>
+#ifdef CONFIG_EXCHANGE_BUS_SPI
 
 #include <array>
 #include <cstdint>
-#include <hal/spi_types.h>
 
 #include "SpiDevice.h"
 
-class SpiMasterDevice final : public SpiDevice {
-    spi_host_device_t _spi;
+class SpiMasterDevice final : public ExchangeDevice {
     struct spi_device_t *_spiDevice{nullptr};
     std::array<uint8_t, 2048> _rx{};
-    EventGroupHandle_t _events;
-protected:
+    EventGroupHandle_t _events{nullptr};
+
+private:
     static void IRAM_ATTR gpio_handshake_isr_handler(void *arg);
+
     static void IRAM_ATTR gpio_ready_data_isr_handler(void *arg);
-    void run() override;
 
-    esp_err_t postRxBuffer(ExchangeMessage *rx_buf_handle) const;
+    void exchange();
 
-    void *getNextTxBuffer() const;
-
-    void queueNextTransaction() const;
+protected:
+    esp_err_t getNextTxBuffer(ExchangeMessage &txBuf) override;
 
 public:
-    explicit SpiMasterDevice(spi_host_device_t device);
+    explicit SpiMasterDevice();
 
-    esp_err_t setup() override;
-
-    void destroy() override;
-
-    esp_err_t writeData(const ExchangeMessage *buffer) override;
-
-    esp_err_t readData(ExchangeMessage *buffer) override;
+    esp_err_t writeData(const ExchangeMessage &buffer, TickType_t tick) override;
 
     ~SpiMasterDevice() override;
 };

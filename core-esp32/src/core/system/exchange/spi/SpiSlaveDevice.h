@@ -2,15 +2,17 @@
 // Created by Ivan Kishchenko on 29/8/24.
 //
 
-#ifndef SPISLAVEDEVICE_H
-#define SPISLAVEDEVICE_H
+#pragma once
+
+#include <sdkconfig.h>
+#include <core/system/exchange/Exchange.h>
+#ifdef CONFIG_EXCHANGE_BUS_SPI
 
 #include <array>
 #include <driver/spi_slave.h>
 #include "SpiDevice.h"
 
-class SpiSlaveDevice : public SpiDevice {
-    spi_host_device_t _spi;
+class SpiSlaveDevice : public ExchangeDevice {
     std::array<uint8_t, 2048> _rx{};
 
 private:
@@ -21,24 +23,19 @@ private:
     static void postTransCb(spi_slave_transaction_t *trans);
 
 protected:
-    esp_err_t postRxBuffer(ExchangeMessage *buf_handle) const;
-
-    void *getNextTxBuffer() const;
+    esp_err_t getNextTxBuffer(ExchangeMessage &txBuf);
 
     void queueNextTransaction() const;
 
-    void run() override;
+    void exchange();
 
 public:
-    explicit SpiSlaveDevice(spi_host_device_t device);
+    explicit SpiSlaveDevice();
 
-    esp_err_t setup() override;
 
-    void destroy() override;
+    esp_err_t writeData(const ExchangeMessage &buffer, TickType_t tick) override;
 
-    esp_err_t writeData(const ExchangeMessage *buffer) override;
-
-    esp_err_t readData(ExchangeMessage *buffer) override;
+    ~SpiSlaveDevice() override;
 };
 
-#endif //SPISLAVEDEVICE_H
+#endif
