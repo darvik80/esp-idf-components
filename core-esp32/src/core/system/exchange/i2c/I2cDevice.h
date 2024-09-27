@@ -4,43 +4,62 @@
 
 #pragma once
 
-#include <freertos/FreeRTOS.h>
-#include <esp_err.h>
+#include <sdkconfig.h>
+#ifdef CONFIG_EXCHANGE_BUS_I2C
 #include <core/system/exchange/Exchange.h>
-#include <driver/i2c_types.h>
+
 #include <soc/gpio_num.h>
 
-#define I2C_RX_BUF_SIZE              32
-#define I2C_PORT 0
-#define I2C_SDA_IO GPIO_NUM_8
-#define I2C_SCL_IO GPIO_NUM_9
+constexpr gpio_num_t pinSDA{static_cast<gpio_num_t>(CONFIG_EXCHANGE_BUS_I2C_SDA_PIN)};
+constexpr gpio_num_t pinSCL{static_cast<gpio_num_t>(CONFIG_EXCHANGE_BUS_I2C_SCL_PIN)};
 
-#define I2C_DEVICE_ADDRESS 0xab
 
-#define CONFIG_I2C_RX_QUEUE_SIZE	10
-#define CONFIG_I2C_TX_QUEUE_SIZE	10
-
-struct CmdMsgLen {
-    uint8_t cmd;
-    uint16_t length;
-} __packed;
-
-class I2cDevice {
+class I2cDevice : public ExchangeDevice {
 protected:
+    esp_err_t packBuffer(const ExchangeMessage &origin, ExchangeMessage &msg, bool dma) override {
+        constexpr uint16_t offset = sizeof(ExchangeHeader);
+        uint16_t total_len = origin.payload_len + offset;
 
-    virtual void exchange() = 0;
-public:
-    static void unpackBuffer(void* payload, ExchangeMessage &msg);
+        if (total_len > CONFIG_EXCHANGE_BUS_BUFFER) {
+            esp_loge(device, "Max frame length exceeded %d.. drop it", total_len);
+            return ESP_FAIL;
+        }
 
-    static esp_err_t packBuffer(const ExchangeMessage &origin, ExchangeMessage &msg);
+        memcpy(&msg, &origin, offset);
 
-    virtual esp_err_t setup(i2c_port_num_t i2c_port, gpio_num_t sda_io_num, gpio_num_t scl_io_num) = 0;
+        msg.payload = malloc(CONFIG_EXCHANGE_BUS_BUFFER+1);
+        assert(msg.payload);
+        memcpy(msg.payload, &msg, offset);
+        msg.payload_len = total_len;
 
-    virtual void destroy() = 0;
+        /* copy the data from caller */
+        if (origin.payload_len) {
+            memcpy(msg.payload + offset, origin.payload, origin.payload_len);
+        }
+        auto *hdr = static_cast<ExchangeHeader *>(msg.payload);
+        hdr->stx = STX_HDR;
+        hdr->offset = offset;
+        hdr->payload_len = total_len;
+        msg.checksum = computeChecksum(msg.payload, msg.payload_len);
+        hdr->checksum = msg.checksum;
 
-    virtual esp_err_t writeData(const ExchangeMessage &buffer, TickType_t tick = portMAX_DELAY) = 0;
+        return ESP_OK;
+    }
 
-    virtual esp_err_t readData(ExchangeMessage &buffer, TickType_t tick = 50) = 0;
+    esp_err_t getNextTxBuffer(ExchangeMessage &txBuf) {
+        if (ESP_OK == ExchangeDevice::getNextTxBuffer(txBuf)) {
+            return ESP_OK;
+        }
 
-    virtual ~I2cDevice() = default;
+        ExchangeMessage dummy{
+            ExchangeHeader{
+                .if_type = 0xF,
+                .if_num = 0xF,
+            },
+        };
+        return packBuffer(dummy, txBuf, false);
+
+    }
 };
+
+#endif

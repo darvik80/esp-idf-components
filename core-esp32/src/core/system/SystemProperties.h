@@ -11,4 +11,5 @@ enum SystemPropId {
     Props_Sys_Mqtt,
     Props_Sys_Uart,
     Props_Sys_Spi,
+    Props_Sys_I2c,
 };

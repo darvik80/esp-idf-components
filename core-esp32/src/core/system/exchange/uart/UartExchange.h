@@ -2,15 +2,27 @@
 // Created by Ivan Kishchenko on 29/8/24.
 //
 
-#ifndef UARTEXCHANGE_H
-#define UARTEXCHANGE_H
+#pragma once
 
+#include <sdkconfig.h>
 
+#ifdef CONFIG_EXCHANGE_BUS_UART
 
-class UartExchange {
+#include <core/Registry.h>
+#include <core/system/SystemService.h>
+#include <core/system/exchange/Exchange.h>
 
+#include "UartDevice.h"
+
+class UartExchange : public AbstractExchange<Service_Sys_UartExchange> {
+public:
+    explicit UartExchange(Registry &registry) : AbstractExchange(registry) {}
+
+    [[nodiscard]] std::string_view getServiceName() const override {
+        return "uart-exchange";
+    }
+
+    void setup() override;
 };
 
-
-
-#endif //UARTEXCHANGE_H
+#endif

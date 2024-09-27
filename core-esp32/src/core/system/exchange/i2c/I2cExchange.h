@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <sdkconfig.h>
+#ifdef CONFIG_EXCHANGE_BUS_I2C
+
+#include <hal/i2c_types.h>
 #include <core/Registry.h>
 #include <core/system/SystemProperties.h>
 #include <core/system/SystemService.h>
@@ -11,18 +15,15 @@
 #include "core/system/exchange/Exchange.h"
 #include "core/system/exchange/i2c/I2cDevice.h"
 
-struct I2cExchangeProperties : TProperties<Props_Sys_Spi, Sys_Core> {
+struct I2cExchangeProperties : TProperties<Props_Sys_I2c, Sys_Core> {
     i2c_mode_t mode;
 };
 
 [[maybe_unused]] void fromJson(cJSON *json, I2cExchangeProperties &props);
 
 
-class I2cExchange : public TService<I2cExchange, Service_Sys_I2CExchange, Sys_Core>,
-                    public TPropertiesConsumer<I2cExchange, I2cExchangeProperties> {
-    I2cDevice* _device{};
-private:
-    void process(const ExchangeMessage& buffer);
+class I2cExchange final : public AbstractExchange<Service_Sys_I2CExchange>,
+                          public TPropertiesConsumer<I2cExchange, I2cExchangeProperties> {
 public:
     explicit I2cExchange(Registry &registry);
 
@@ -30,8 +31,7 @@ public:
         return "i2c-exchange";
     }
 
-    void setup() override;
-
     void apply(const I2cExchangeProperties &props);
 };
 
+#endif
