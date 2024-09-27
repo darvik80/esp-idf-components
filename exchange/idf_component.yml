@@ -1,0 +1,2 @@
+version: "0.1.0"
+description: Exchange via SPI/UART/I2C busses

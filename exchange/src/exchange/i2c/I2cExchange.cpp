@@ -9,8 +9,8 @@
 #include <esp_timer.h>
 #include <core/Task.h>
 
-#include "core/system/exchange/i2c/I2cMasterDevice.h"
-#include "core/system/exchange/i2c/I2cSlaveDevice.h"
+#include "I2cMasterDevice.h"
+#include "I2cSlaveDevice.h"
 
 void fromJson(cJSON *json, I2cExchangeProperties &props) {
     if (json->type == cJSON_Object) {

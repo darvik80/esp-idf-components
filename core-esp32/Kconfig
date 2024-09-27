@@ -1,4 +1,4 @@
-menu "core-esp32"
+menu "Darvik:Core-esp32"
     config CORE_WIFI_ENABLE
         bool "Enable Wifi Module"
         default y

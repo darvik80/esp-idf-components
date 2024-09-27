@@ -5,8 +5,8 @@
 #pragma once
 
 #include <sdkconfig.h>
-#include <core/system/exchange/Exchange.h>
 #ifdef CONFIG_EXCHANGE_BUS_SPI
+#include <exchange/Exchange.h>
 
 #include <array>
 #include <driver/spi_slave.h>
