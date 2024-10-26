@@ -1,0 +1,12 @@
+menu "Darvik:MP3"
+    config DF_PLAYER_ENABLED
+        bool "Enable DF-Player"
+        default y
+        help
+            Enable DF Player support
+    config JQ6500_PLAYER_ENABLED
+        bool "Enable JQ6500"
+        default y
+        help
+            Enable JQ6500 Player support
+endmenu
