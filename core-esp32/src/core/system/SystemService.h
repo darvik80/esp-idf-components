@@ -11,9 +11,6 @@ enum SystemServiceId {
     Service_Sys_Console,
     Service_Sys_Telemetry,
     Service_Sys_Ota,
-    Service_Sys_UartExchange,
-    Service_Sys_I2CExchange,
-    Service_Sys_SPIExchange,
 };
 
 enum System {

@@ -14,6 +14,7 @@
 #include <freertos/FreeRTOS.h>
 
 #include "fmt/format.h"
+#include "ComponentConfig.h"
 
 #define STX_HDR 0xFDFE
 
@@ -109,13 +110,13 @@ public:
 };
 
 template<ServiceSubId id>
-class AbstractExchange : public Exchange, public TService<AbstractExchange<id>, id, Sys_Core> {
+class AbstractExchange : public Exchange, public TService<AbstractExchange<id>, id, Component_Exchange> {
 protected:
     ExchangeDevice *_device{};
 
 public:
     explicit AbstractExchange(Registry &registry)
-        : TService<AbstractExchange, id, Sys_Core>(registry) {
+        : TService<AbstractExchange, id, Component_Exchange>(registry) {
     }
 
     void setup() override {

@@ -12,8 +12,6 @@
 #include <core/system/SystemService.h>
 #include <exchange/Exchange.h>
 
-#include "UartDevice.h"
-
 class UartExchange : public AbstractExchange<Service_Sys_UartExchange> {
 public:
     explicit UartExchange(Registry &registry) : AbstractExchange(registry) {}

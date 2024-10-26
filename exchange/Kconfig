@@ -1,4 +1,9 @@
 menu "Darvik:Exchange"
+    config EXCHANGE_BUS_COMPONENT_ID
+        hex "Component Id"
+        default 0x04
+
+
     choice Bus
         prompt "Exchange bus"
         default EXCHANGE_BUS_UART
@@ -6,17 +11,21 @@ menu "Darvik:Exchange"
             Please select exchange bus
 
         config EXCHANGE_BUS_UART
-            bool "UART exchange"
+            bool "UART"
             help
                 UART exchange bus
 
         config EXCHANGE_BUS_SPI
-            bool "SPI exchange"
+            bool "SPI"
             help
                 SPI exchange bus
 
         config EXCHANGE_BUS_I2C
-            bool "I2C exchange"
+            bool "I2C"
+            help
+                I2C exchange bus
+        config EXCHANGE_BUS_ESP_NOW
+            bool "EspNow"
             help
                 I2C exchange bus
     endchoice
@@ -245,6 +254,7 @@ menu "Darvik:Exchange"
         default 1600 if EXCHANGE_BUS_UART
         default 1600 if EXCHANGE_BUS_SPI
         default 1024 if EXCHANGE_BUS_I2C
+        default 250 if EXCHANGE_BUS_ESP_NOW
 
     config EXCHANGE_BUS_RX_QUEUE_SIZE
         int "RX Queue size"

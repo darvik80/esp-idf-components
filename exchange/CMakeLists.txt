@@ -5,6 +5,7 @@ file(GLOB SOURCES
         src/exchange/spi/*.cpp
         src/exchange/i2c/*.cpp
         src/exchange/uart/*.cpp
+        src/exchange/espnow/*.cpp
 )
 
 idf_component_register(
