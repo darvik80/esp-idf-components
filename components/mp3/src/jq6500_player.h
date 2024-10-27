@@ -18,6 +18,7 @@ typedef struct {
     gpio_num_t busy_pin;
     int rx_buffer_size;
     int tx_buffer_size;
-} df_player_config_t;
+} jq6500_player_config_t;
 
-esp_err_t create_df_player(df_player_config_t* config, mp3_player_handle_t* handle);
+esp_err_t create_jq6500_player(jq6500_player_config_t* config, mp3_player_handle_t* handle);
+

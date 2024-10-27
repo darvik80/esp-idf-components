@@ -41,6 +41,8 @@ enum ESP_PACKET_TYPE {
     PACKET_TYPE_EAPOL,
 };
 
+#pragma pack(push, 1)
+
 struct ExchangeHeader {
     uint16_t stx;
     uint8_t if_type;
@@ -52,7 +54,10 @@ struct ExchangeHeader {
     uint16_t length;
     uint16_t checksum;
     uint16_t payload_len;
-} __packed;
+    uint8_t etx;
+};
+
+#pragma pack(pop)
 
 #define DMA_ALIGNMENT_BYTES	4
 #define DMA_ALIGNMENT_MASK	(DMA_ALIGNMENT_BYTES-1)

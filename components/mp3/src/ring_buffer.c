@@ -6,48 +6,67 @@
 
 #include <string.h>
 
-esp_err_t ring_buffer_create(size_t size, ring_buffer_handler_t *ring_buffer) {
-    ring_buffer_t *buffer = malloc(sizeof(ring_buffer_t));
-    buffer->buf = (uint8_t *) malloc(size);
-    buffer->buf_size = size;
-    buffer->head = 0;
-    buffer->tail = 0;
+esp_err_t ring_buffer_create(size_t size, ring_buffer_handler_t* ring_buffer)
+{
+    ring_buffer_t* buffer = malloc(sizeof(ring_buffer_t));
+    buffer->start = (uint8_t*)malloc(size);
+    buffer->end = buffer->start + size;
+    buffer->write_ptr = buffer->start;
+    buffer->read_ptr = buffer->start;
+    buffer->flags = RB_IS_EMPTY;
 
     *ring_buffer = buffer;
     return ESP_OK;
 }
 
-size_t ring_buffer_available(ring_buffer_handler_t ring_buffer) {
-    if (ring_buffer->head <= ring_buffer->tail) {
-        return ring_buffer->tail - ring_buffer->head;
+esp_err_t ring_buffer_write(ring_buffer_handler_t ring_buffer, uint8_t ch)
+{
+    if (ring_buffer == NULL)
+    {
+        return ESP_ERR_INVALID_ARG;
     }
 
-    return ring_buffer->buf_size - (ring_buffer->head - ring_buffer->tail);
-}
-
-esp_err_t ring_buffer_add(ring_buffer_handler_t ring_buffer, uint8_t *buf, size_t size) {
-    if (ring_buffer->buf_size < size) {
+    if ((ring_buffer->write_ptr == ring_buffer->read_ptr) && ring_buffer->flags & RB_IS_FULL)
+    {
         return ESP_ERR_NO_MEM;
     }
 
-    if (ring_buffer_available(ring_buffer)) {
-        return ESP_ERR_NO_MEM;
-    }
+    *(ring_buffer->write_ptr) = ch;
 
-    size_t remaining = ring_buffer->buf_size - ring_buffer->tail;
-    if (remaining > size) {
-        memcpy(ring_buffer->buf + ring_buffer->tail, buf, size);
-        ring_buffer->tail += size;
-    } else {
-        memcpy(ring_buffer->buf + ring_buffer->tail, buf, remaining);
-        ring_buffer->tail = size - remaining;
-        memcpy(ring_buffer->buf, buf, ring_buffer->tail);
+    volatile uint8_t* tmp = ring_buffer->write_ptr + 1;
+    if (tmp >= ring_buffer->end) tmp = ring_buffer->start;
+    if (tmp == ring_buffer->read_ptr)
+    {
+        ring_buffer->flags = RB_IS_FULL;
     }
+    ring_buffer->write_ptr = tmp;
 
     return ESP_OK;
 }
 
-esp_err_t ring_buffer_destroy(ring_buffer_handler_t ring_buffer) {
-    free(ring_buffer->buf);
+esp_err_t ring_buffer_read(ring_buffer_handler_t ring_buffer, uint8_t* ch)
+{
+    if (ring_buffer == NULL) return ESP_ERR_INVALID_ARG;
+
+    if ((ring_buffer->read_ptr == ring_buffer->write_ptr) && ring_buffer->flags == RB_IS_EMPTY)
+    {
+        return ESP_FAIL;
+    }
+
+    *ch = *ring_buffer->read_ptr;
+
+    volatile uint8_t* tmp = ring_buffer->read_ptr + 1;
+    if (tmp >= ring_buffer->end) tmp = ring_buffer->start;
+    if (tmp == ring_buffer->write_ptr)ring_buffer->flags = RB_IS_EMPTY;
+    ring_buffer->read_ptr = tmp;
+
+    return ESP_OK;
+}
+
+esp_err_t ring_buffer_destroy(ring_buffer_handler_t ring_buffer)
+{
+    free(ring_buffer->start);
+    free(ring_buffer);
+
     return ESP_OK;
 }
