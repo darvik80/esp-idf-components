@@ -149,17 +149,17 @@ esp_err_t df_volume_decrease(struct mp3_player_t* self)
     return df_exec(self, DF_VolumeDecrease, 0);
 }
 
-esp_err_t df_volume(struct mp3_player_t* self, int16_t idx)
+esp_err_t df_volume(struct mp3_player_t* self, uint8_t idx)
 {
     return df_exec(self, DF_VolumeSet, idx);
 }
 
-esp_err_t df_eq(mp3_player_handle_t player, int16_t idx)
+esp_err_t df_eq(mp3_player_handle_t player, uint8_t idx)
 {
     return df_exec(player, DF_EQ, idx);
 }
 
-esp_err_t df_play_mode(mp3_player_handle_t player, int16_t idx)
+esp_err_t df_play_mode(mp3_player_handle_t player, uint8_t idx)
 {
     return df_exec(player, DF_PlayMode, idx);
 }

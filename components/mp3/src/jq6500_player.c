@@ -74,87 +74,100 @@ typedef struct
 
 #pragma pack(pop)
 
-esp_err_t exec(struct mp3_player_t* self, uint8_t cmd, uint16_t arg)
+enum jq6500_exec_cfg {
+    JQ6500_NoArgs,
+    JQ6500_Arg1,
+    JQ6500_Arg2,
+};
+
+esp_err_t jq6500_exec(struct mp3_player_t* self, uint8_t cmd, enum jq6500_exec_cfg cfg, uint16_t args)
 {
     jq6500_player_t* player = __containerof(self, jq6500_player_t, base);
 
-    ESP_LOGI(TAG, "Exec CMD REQ: %.02x, %d", cmd, arg);
-    jq6500_message msg = {
-        .magicBegin = jqbeg,
-        .length = jqlen,
-        .code = cmd,
-        .arg = htons(arg),
-        .magicEnd = jqend,
-    };
-    uart_write_bytes(player->port, &msg, sizeof(jq6500_message));
+    ESP_LOGI(TAG, "Exec CMD REQ: %.02x, %d", cmd, args);
+
+    size_t offset = 0;
+    uint8_t msg[6];
+    msg[offset++] = jqbeg;
+    msg[offset++] = 4;
+    msg[offset++] = cmd;
+    if (cfg == JQ6500_Arg1) {
+        msg[offset++] = args & 0xff;
+    } else if (cfg == JQ6500_Arg2) {
+        msg[offset++] = args >> 8 & 0xff;
+        msg[offset++] = args & 0xff;
+    }
+    msg[offset++] = jqend;
+    msg[1] = offset-2;
+
+    uart_write_bytes(player->port, &msg, offset);
 
     return ESP_OK;
 }
 
-
 esp_err_t jq6500_play_next(struct mp3_player_t* self)
 {
-    return exec(self, JQ6500_PlayNext, 0);
+    return jq6500_exec(self, JQ6500_PlayNext, JQ6500_NoArgs, 0);
 }
 
 esp_err_t jq6500_play_prev(struct mp3_player_t* self)
 {
-    return exec(self, JQ6500_PlayPrev, 0);
+    return jq6500_exec(self, JQ6500_PlayPrev, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_play_idx(struct mp3_player_t* self, int16_t idx)
+esp_err_t jq6500_play_idx(struct mp3_player_t* self, uint16_t idx)
 {
-    return exec(self, JQ6500_Play, idx);
+    return jq6500_exec(self, JQ6500_Play, JQ6500_Arg2, idx);
 }
 
 esp_err_t jq6500_volume_increase(struct mp3_player_t* self)
 {
-    return exec(self, JQ6500_VolumeIncrease, 0);
+    return jq6500_exec(self, JQ6500_VolumeIncrease, JQ6500_NoArgs, 0);
 }
 
 esp_err_t jq6500_volume_decrease(struct mp3_player_t* self)
 {
-    return exec(self, JQ6500_VolumeDecrease, 0);
+    return jq6500_exec(self, JQ6500_VolumeDecrease, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_volume(struct mp3_player_t* self, int16_t idx)
+esp_err_t jq6500_volume(struct mp3_player_t* self, uint8_t idx)
 {
-    return exec(self, JQ6500_VolumeSet, idx);
+    return jq6500_exec(self, JQ6500_VolumeSet, JQ6500_Arg1, idx);
 }
 
-esp_err_t jq6500_eq(mp3_player_handle_t player, int16_t idx)
+esp_err_t jq6500_eq(mp3_player_handle_t player, uint8_t idx)
 {
-    return exec(player, JQ6500_EQ, idx);
+    return jq6500_exec(player, JQ6500_EQ, JQ6500_Arg1, idx);
 }
 
-esp_err_t jq6500_play_mode(mp3_player_handle_t player, int16_t idx)
+esp_err_t jq6500_play_mode(mp3_player_handle_t player, uint8_t idx)
 {
-    return exec(player, JQ6500_PlayMode, idx);
+    return jq6500_exec(player, JQ6500_PlayMode, JQ6500_Arg1, idx);
 }
 
 esp_err_t jq6500_stand_by(mp3_player_handle_t player)
 {
-    return exec(player, JQ6500_StandBy, 0);
+    return jq6500_exec(player, JQ6500_StandBy, JQ6500_NoArgs, 0);
 }
 
 esp_err_t jq6500_normal(mp3_player_handle_t player)
 {
-    return exec(player, JQ6500_Normal, 0);
+    return jq6500_exec(player, JQ6500_Normal, JQ6500_NoArgs, 0);
 }
 
 esp_err_t jq6500_reset(mp3_player_handle_t player)
 {
-    return exec(player, JQ6500_Reset, 0);
+    return jq6500_exec(player, JQ6500_Reset, JQ6500_NoArgs, 0);
 }
 
 esp_err_t jq6500_playback(mp3_player_handle_t player)
 {
-    return exec(player, JQ6500_Playback, 0);
+    return jq6500_exec(player, JQ6500_Playback, JQ6500_NoArgs, 0);
 }
 
 esp_err_t jq6500_pause(mp3_player_handle_t player)
 {
-    return exec(player, JQ6500_Pause, 0);
+    return jq6500_exec(player, JQ6500_Pause, JQ6500_NoArgs, 0);
 }
 
 esp_err_t jq6500_destroy(mp3_player_handle_t player)
