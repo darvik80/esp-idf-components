@@ -10,25 +10,24 @@
 #include <driver/gpio.h>
 #include <driver/uart.h>
 
-static const char* TAG = "df-mp3";
+static const char *TAG = "df-mp3";
 
-enum DFPlayerCode
-{
+enum DFPlayerCode {
     DF_PlayNext = 0x01,
     DF_PlayPrev = 0x02,
-    DF_Play = 0x03,             // 1 - 2999
+    DF_Play = 0x03, // 1 - 2999
     DF_VolumeIncrease = 0x04,
     DF_VolumeDecrease = 0x05,
-    DF_VolumeSet = 0x06,        // 1 - 30
-    DF_EQ = 0x07,               // Normal/Pop/Rock/Jazz/Classic/Base
-    DF_PlayMode = 0x08,         // Repeat/Folder Repeat/Single Repeat/Random
-    DF_DataSource = 0x09,       // U/TF/AUX/SLEEP/FLASH
+    DF_VolumeSet = 0x06, // 1 - 30
+    DF_EQ = 0x07, // Normal/Pop/Rock/Jazz/Classic/Base
+    DF_PlayMode = 0x08, // Repeat/Folder Repeat/Single Repeat/Random
+    DF_DataSource = 0x09, // U/TF/AUX/SLEEP/FLASH
     DF_StandBy = 0x0A,
     DF_Normal = 0x0B,
     DF_Reset = 0x0C,
     DF_Playback = 0x0D,
     DF_Pause = 0x0E,
-    DF_SetFolder = 0x0F,        // 1 - 10
+    DF_SetFolder = 0x0F, // 1 - 10
     DF_VolumeAdjustSet = 0x10,
     DF_RepeatPlay = 0x11,
     DF_STAY1 = 0x3C,
@@ -50,8 +49,7 @@ enum DFPlayerCode
 };
 
 
-typedef struct
-{
+typedef struct {
     struct mp3_player_t base;
     uart_port_t port;
     gpio_num_t busy_pin;
@@ -64,18 +62,15 @@ const uint8_t beg = 0x7e, end = 0xef, len = 0x06, ver = 0xff;
 
 #pragma pack(push, 1)
 
-typedef struct
-{
+typedef struct {
     uint8_t magicBegin;
     uint8_t version;
     uint8_t length;
     uint8_t code;
     uint8_t feedback;
 
-    union
-    {
-        struct
-        {
+    union {
+        struct {
             uint8_t arg1;
             uint8_t arg2;
         };
@@ -89,21 +84,18 @@ typedef struct
 
 #pragma pack(pop)
 
-uint16_t checksum(df_message* msg)
-{
-    uint8_t* buf = msg;
+uint16_t checksum(df_message *msg) {
+    const uint8_t *buf = (uint8_t *) msg;
     uint16_t sum = 0;
-    for (size_t idx = 1; idx <= 6; idx++)
-    {
+    for (size_t idx = 1; idx <= 6; idx++) {
         sum -= buf[idx];
     }
 
     return htons(sum);
 }
 
-esp_err_t df_exec(struct mp3_player_t* self, uint8_t cmd, uint16_t arg)
-{
-    df_player_t* player = __containerof(self, df_player_t, base);
+esp_err_t df_exec(struct mp3_player_t *self, uint8_t cmd, uint16_t arg) {
+    df_player_t *player = __containerof(self, df_player_t, base);
 
     ESP_LOGI(TAG, "Exec CMD REQ: %.02x, %d", cmd, arg);
     df_message msg = {
@@ -120,78 +112,64 @@ esp_err_t df_exec(struct mp3_player_t* self, uint8_t cmd, uint16_t arg)
     xQueueReceive(player->rx_queue, &msg, portMAX_DELAY);
     ESP_LOGI(TAG, "Exec CMD ACK: %.02x/%.02x", cmd, msg.code);
 
-    return msg.code == DF_OK || msg.code == DF_STAY2  ? ESP_OK : ESP_FAIL;
+    return msg.code == DF_OK || msg.code == DF_STAY2 ? ESP_OK : ESP_FAIL;
 }
 
 
-esp_err_t df_play_next(struct mp3_player_t* self)
-{
+esp_err_t df_play_next(struct mp3_player_t *self) {
     return df_exec(self, DF_PlayNext, 0);
 }
 
-esp_err_t df_play_prev(struct mp3_player_t* self)
-{
+esp_err_t df_play_prev(struct mp3_player_t *self) {
     return df_exec(self, DF_PlayPrev, 0);
 }
 
-esp_err_t df_play_idx(struct mp3_player_t* self, int16_t idx)
-{
+esp_err_t df_play_idx(struct mp3_player_t *self, uint16_t idx) {
     return df_exec(self, DF_Play, idx);
 }
 
-esp_err_t df_volume_increase(struct mp3_player_t* self)
-{
+esp_err_t df_volume_increase(struct mp3_player_t *self) {
     return df_exec(self, DF_VolumeIncrease, 0);
 }
 
-esp_err_t df_volume_decrease(struct mp3_player_t* self)
-{
+esp_err_t df_volume_decrease(struct mp3_player_t *self) {
     return df_exec(self, DF_VolumeDecrease, 0);
 }
 
-esp_err_t df_volume(struct mp3_player_t* self, uint8_t idx)
-{
+esp_err_t df_volume(struct mp3_player_t *self, uint8_t idx) {
     return df_exec(self, DF_VolumeSet, idx);
 }
 
-esp_err_t df_eq(mp3_player_handle_t player, uint8_t idx)
-{
+esp_err_t df_eq(mp3_player_handle_t player, uint8_t idx) {
     return df_exec(player, DF_EQ, idx);
 }
 
-esp_err_t df_play_mode(mp3_player_handle_t player, uint8_t idx)
-{
+esp_err_t df_play_mode(mp3_player_handle_t player, uint8_t idx) {
     return df_exec(player, DF_PlayMode, idx);
 }
 
-esp_err_t df_stand_by(mp3_player_handle_t player)
-{
+esp_err_t df_stand_by(mp3_player_handle_t player) {
     return df_exec(player, DF_StandBy, 0);
 }
 
-esp_err_t df_normal(mp3_player_handle_t player)
-{
+esp_err_t df_normal(mp3_player_handle_t player) {
     return df_exec(player, DF_Normal, 0);
 }
 
-esp_err_t df_reset(mp3_player_handle_t player)
-{
+esp_err_t df_reset(mp3_player_handle_t player) {
     return df_exec(player, DF_Reset, 0);
 }
 
-esp_err_t df_playback(mp3_player_handle_t player)
-{
+esp_err_t df_playback(mp3_player_handle_t player) {
     return df_exec(player, DF_Playback, 0);
 }
 
-esp_err_t df_pause(mp3_player_handle_t player)
-{
+esp_err_t df_pause(mp3_player_handle_t player) {
     return df_exec(player, DF_Pause, 0);
 }
 
-esp_err_t df_destroy(mp3_player_handle_t player)
-{
-    const df_player_t* self = __containerof(player, df_player_t, base);
+esp_err_t df_destroy(mp3_player_handle_t player) {
+    const df_player_t *self = __containerof(player, df_player_t, base);
     vTaskDelete(self->rx_task);
     vQueueDelete(self->rx_queue);
     uart_driver_delete(self->port);
@@ -199,9 +177,8 @@ esp_err_t df_destroy(mp3_player_handle_t player)
     return ESP_OK;
 }
 
-[[noreturn]] void df_player_rx_task(void* args)
-{
-    const df_player_t* self = args;
+[[noreturn]] void df_player_rx_task(void *args) {
+    const df_player_t *self = args;
     uint8_t msg[sizeof(df_message)];
     uint8_t fragmented = 0;
 
@@ -209,55 +186,43 @@ esp_err_t df_destroy(mp3_player_handle_t player)
     uart_flush_input(self->port);
     xQueueReset(self->uart_queue);
 
-    while (true)
-    {
+    while (true) {
         // send data
         uart_event_t event;
-        if (xQueueReceive(self->uart_queue, &event, portMAX_DELAY))
-        {
-            switch (event.type)
-            {
-            case UART_DATA:
-                {
+        if (xQueueReceive(self->uart_queue, &event, portMAX_DELAY)) {
+            switch (event.type) {
+                case UART_DATA: {
                     ESP_LOGI(TAG, "recv data: %d", event.size);
                     size_t size;
                     uart_get_buffered_data_len(self->port, &size);
-                    if (size < sizeof(df_message) && !fragmented)
-                    {
+                    if (size < sizeof(df_message) && !fragmented) {
                         break;
                     }
 
-                    while (size)
-                    {
-                        if (!fragmented)
-                        {
+                    while (size) {
+                        if (!fragmented) {
                             uart_read_bytes(self->port, &msg, sizeof(df_message), portMAX_DELAY);
                             size -= sizeof(df_message);
-                        }
-                        else
-                        {
+                        } else {
                             memmove(&msg[0], &msg[1], sizeof(df_message) - 1);
                             uart_read_bytes(self->port, &msg[sizeof(df_message) - 1], sizeof(uint8_t), portMAX_DELAY);
                             size--;
                         }
-                        df_message* ptr = msg;
+                        df_message *ptr = (df_message *) msg;
 
                         ESP_LOG_BUFFER_HEX(TAG, msg, sizeof(msg));
 
-                        if (ptr->magicBegin == beg && ptr->magicEnd == end && ptr->length == len && ptr->checksum == checksum(ptr))
-                        {
+                        if (ptr->magicBegin == beg && ptr->magicEnd == end && ptr->length == len && ptr->checksum ==
+                            checksum(ptr)) {
                             xQueueSendToBack(self->rx_queue, ptr, portMAX_DELAY);
                             fragmented = 0;
-                        }
-                        else
-                        {
+                        } else {
                             fragmented = 1;
                         }
                     }
                 }
                 break;
-            default:
-                {
+                default: {
                     ESP_LOGD(TAG, "uart[%d] event: %d", self->port, event.type);
                     uart_flush_input(self->port);
                     xQueueReset(self->uart_queue);
@@ -268,10 +233,9 @@ esp_err_t df_destroy(mp3_player_handle_t player)
     }
 }
 
-esp_err_t create_df_player(df_player_config_t* config, mp3_player_handle_t* handle)
-{
-    df_player_t* player = malloc(sizeof(df_player_t));
-   uart_config_t uart_config = {
+esp_err_t create_df_player(df_player_config_t *config, mp3_player_handle_t *handle) {
+    df_player_t *player = malloc(sizeof(df_player_t));
+    uart_config_t uart_config = {
         .baud_rate = config->baud_rate,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,

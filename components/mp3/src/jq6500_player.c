@@ -9,10 +9,9 @@
 #include <string.h>
 #include <driver/uart.h>
 
-static const char* TAG = "jq6500-mp3";
+static const char *TAG = "jq6500-mp3";
 
-enum JQ6500PlayerCode
-{
+enum JQ6500PlayerCode {
     JQ6500_PlayNext = 0x01,
     JQ6500_PlayPrev = 0x02,
     JQ6500_Play = 0x03, // 1 - 2999
@@ -38,8 +37,7 @@ enum JQ6500PlayerCode
 };
 
 
-typedef struct
-{
+typedef struct {
     struct mp3_player_t base;
     uart_port_t port;
     gpio_num_t busy_pin;
@@ -52,16 +50,13 @@ const uint8_t jqbeg = 0x7e, jqend = 0xef, jqlen = 0x04;
 
 #pragma pack(push, 1)
 
-typedef struct
-{
+typedef struct {
     uint8_t magicBegin;
     uint8_t length;
     uint8_t code;
 
-    union
-    {
-        struct
-        {
+    union {
+        struct {
             uint8_t arg1;
             uint8_t arg2;
         };
@@ -80,9 +75,8 @@ enum jq6500_exec_cfg {
     JQ6500_Arg2,
 };
 
-esp_err_t jq6500_exec(struct mp3_player_t* self, uint8_t cmd, enum jq6500_exec_cfg cfg, uint16_t args)
-{
-    jq6500_player_t* player = __containerof(self, jq6500_player_t, base);
+esp_err_t jq6500_exec(struct mp3_player_t *self, uint8_t cmd, enum jq6500_exec_cfg cfg, uint16_t args) {
+    jq6500_player_t *player = __containerof(self, jq6500_player_t, base);
 
     ESP_LOGI(TAG, "Exec CMD REQ: %.02x, %d", cmd, args);
 
@@ -98,81 +92,67 @@ esp_err_t jq6500_exec(struct mp3_player_t* self, uint8_t cmd, enum jq6500_exec_c
         msg[offset++] = args & 0xff;
     }
     msg[offset++] = jqend;
-    msg[1] = offset-2;
+    msg[1] = offset - 2;
 
     uart_write_bytes(player->port, &msg, offset);
 
     return ESP_OK;
 }
 
-esp_err_t jq6500_play_next(struct mp3_player_t* self)
-{
+esp_err_t jq6500_play_next(struct mp3_player_t *self) {
     return jq6500_exec(self, JQ6500_PlayNext, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_play_prev(struct mp3_player_t* self)
-{
+esp_err_t jq6500_play_prev(struct mp3_player_t *self) {
     return jq6500_exec(self, JQ6500_PlayPrev, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_play_idx(struct mp3_player_t* self, uint16_t idx)
-{
+esp_err_t jq6500_play_idx(struct mp3_player_t *self, uint16_t idx) {
     return jq6500_exec(self, JQ6500_Play, JQ6500_Arg2, idx);
 }
 
-esp_err_t jq6500_volume_increase(struct mp3_player_t* self)
-{
+esp_err_t jq6500_volume_increase(struct mp3_player_t *self) {
     return jq6500_exec(self, JQ6500_VolumeIncrease, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_volume_decrease(struct mp3_player_t* self)
-{
+esp_err_t jq6500_volume_decrease(struct mp3_player_t *self) {
     return jq6500_exec(self, JQ6500_VolumeDecrease, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_volume(struct mp3_player_t* self, uint8_t idx)
-{
+esp_err_t jq6500_volume(struct mp3_player_t *self, uint8_t idx) {
     return jq6500_exec(self, JQ6500_VolumeSet, JQ6500_Arg1, idx);
 }
 
-esp_err_t jq6500_eq(mp3_player_handle_t player, uint8_t idx)
-{
+esp_err_t jq6500_eq(mp3_player_handle_t player, uint8_t idx) {
     return jq6500_exec(player, JQ6500_EQ, JQ6500_Arg1, idx);
 }
 
-esp_err_t jq6500_play_mode(mp3_player_handle_t player, uint8_t idx)
-{
+esp_err_t jq6500_play_mode(mp3_player_handle_t player, uint8_t idx) {
     return jq6500_exec(player, JQ6500_PlayMode, JQ6500_Arg1, idx);
 }
 
-esp_err_t jq6500_stand_by(mp3_player_handle_t player)
-{
+esp_err_t jq6500_stand_by(mp3_player_handle_t player) {
     return jq6500_exec(player, JQ6500_StandBy, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_normal(mp3_player_handle_t player)
-{
+esp_err_t jq6500_normal(mp3_player_handle_t player) {
     return jq6500_exec(player, JQ6500_Normal, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_reset(mp3_player_handle_t player)
-{
+esp_err_t jq6500_reset(mp3_player_handle_t player) {
     return jq6500_exec(player, JQ6500_Reset, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_playback(mp3_player_handle_t player)
-{
+esp_err_t jq6500_playback(mp3_player_handle_t player) {
     return jq6500_exec(player, JQ6500_Playback, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_pause(mp3_player_handle_t player)
-{
+esp_err_t jq6500_pause(mp3_player_handle_t player) {
     return jq6500_exec(player, JQ6500_Pause, JQ6500_NoArgs, 0);
 }
 
-esp_err_t jq6500_destroy(mp3_player_handle_t player)
-{
-    const jq6500_player_t* self = __containerof(player, jq6500_player_t, base);
+esp_err_t jq6500_destroy(mp3_player_handle_t player) {
+    const jq6500_player_t *self = __containerof(player, jq6500_player_t, base);
     vTaskDelete(self->rx_task);
     vQueueDelete(self->rx_queue);
     uart_driver_delete(self->port);
@@ -180,33 +160,27 @@ esp_err_t jq6500_destroy(mp3_player_handle_t player)
     return ESP_OK;
 }
 
-[[noreturn]] void jq6500_player_rx_task(void* args)
-{
-    const jq6500_player_t* self = args;
+[[noreturn]] void jq6500_player_rx_task(void *args) {
+    const jq6500_player_t *self = args;
 
     ESP_LOGI(TAG, "rxTask running");
     uart_flush_input(self->port);
     xQueueReset(self->uart_queue);
 
-    while (true)
-    {
+    while (true) {
         // send data
         uart_event_t event;
-        if (xQueueReceive(self->uart_queue, &event, portMAX_DELAY))
-        {
-            switch (event.type)
-            {
-            case UART_DATA:
-                {
+        if (xQueueReceive(self->uart_queue, &event, portMAX_DELAY)) {
+            switch (event.type) {
+                case UART_DATA: {
                     ESP_LOGI(TAG, "recv data: %d", event.size);
-                    uint8_t* buf = malloc(event.size + 1);
+                    uint8_t *buf = malloc(event.size + 1);
                     uart_read_bytes(self->port, buf, event.size, portMAX_DELAY);
                     buf[event.size] = 0;
                     ESP_LOGI(TAG, "recv data: %d:%s", event.size, buf);
                 }
                 break;
-            default:
-                {
+                default: {
                     ESP_LOGI(TAG, "uart[%d] event: %d", self->port, event.type);
                     uart_flush_input(self->port);
                     xQueueReset(self->uart_queue);
@@ -217,9 +191,8 @@ esp_err_t jq6500_destroy(mp3_player_handle_t player)
     }
 }
 
-esp_err_t create_jq6500_player(jq6500_player_config_t* config, mp3_player_handle_t* handle)
-{
-    jq6500_player_t* player = malloc(sizeof(jq6500_player_t));
+esp_err_t create_jq6500_player(jq6500_player_config_t *config, mp3_player_handle_t *handle) {
+    jq6500_player_t *player = malloc(sizeof(jq6500_player_t));
     uart_config_t uart_config = {
         .baud_rate = config->baud_rate,
         .data_bits = UART_DATA_8_BITS,
