@@ -5,7 +5,6 @@
 #pragma once
 
 #include <sdkconfig.h>
-#ifdef CONFIG_EXCHANGE_BUS_SPI
 
 #include <core/Registry.h>
 #include <core/system/SystemProperties.h>
@@ -35,4 +34,3 @@ public:
     void apply(const SpiExchangeProperties &props);
 };
 
-#endif //SPIEXCHANGE_H

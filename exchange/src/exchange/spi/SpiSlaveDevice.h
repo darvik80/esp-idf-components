@@ -23,7 +23,7 @@ private:
     static void postTransCb(spi_slave_transaction_t *trans);
 
 protected:
-    esp_err_t getNextTxBuffer(ExchangeMessage &txBuf);
+    esp_err_t getNextTxBuffer(exchange_message_t &txBuf);
 
     void queueNextTransaction() const;
 
@@ -33,7 +33,7 @@ public:
     explicit SpiSlaveDevice();
 
 
-    esp_err_t writeData(const ExchangeMessage &buffer, TickType_t tick) override;
+    esp_err_t writeData(const exchange_message_t &buffer, TickType_t tick) override;
 
     ~SpiSlaveDevice() override;
 };

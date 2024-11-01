@@ -54,6 +54,11 @@ private:
     }
 
 public:
+    static Registry& getInstance() {
+        static Registry instance;
+        return instance;
+    }
+
     template<typename C, typename... T>
     C &create(T &&... all) {
         static_assert(std::is_base_of_v<Service, C>, "C must be derived from Service");

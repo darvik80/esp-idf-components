@@ -15,14 +15,12 @@
 
 template<typename T>
 class Application : public std::enable_shared_from_this<T> {
-    Registry _registry;
-
 protected:
     virtual void userSetup() {}
 
 public:
     Registry &getRegistry() {
-        return _registry;
+        return Registry::getInstance();
     }
 
     virtual void setup() {

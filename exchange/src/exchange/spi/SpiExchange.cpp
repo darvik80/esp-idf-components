@@ -42,16 +42,13 @@ void SpiExchange::apply(const SpiExchangeProperties &props) {
 
         std::string msg = "Init message from SLAVE: ";
         msg += std::to_string(esp_timer_get_time());
-        ExchangeMessage buf{
-            ExchangeHeader{
-                .if_type = ESP_INTERNAL_IF,
-                .if_num = 0x04,
-                .pkt_type = PACKET_TYPE_COMMAND_REQUEST,
-            },
+        exchange_message_t buf{
+            .if_type = ESP_INTERNAL_IF,
+            .if_num = 0x04,
+            .pkt_type = PACKET_TYPE_COMMAND_REQUEST,
         };
         buf.payload = (void *) msg.data();
-        buf.payload_len = msg.size() + 1;
-        buf.length = buf.payload_len;
+        buf.length = msg.size() + 1;
         esp_logi(spi, "Slave send init message");
         _device->writeData(buf);
     }

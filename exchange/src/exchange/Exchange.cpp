@@ -5,7 +5,7 @@
 #include "Exchange.h"
 
 uint16_t ExchangeDevice::computeChecksum(void *buf, uint16_t len) {
-    auto* ptr = static_cast<uint8_t*>(buf);
+    auto *ptr = static_cast<uint8_t *>(buf);
     uint16_t checksum = 0;
     uint16_t i = 0;
 
@@ -19,10 +19,10 @@ uint16_t ExchangeDevice::computeChecksum(void *buf, uint16_t len) {
 
 ExchangeDevice::ExchangeDevice() {
     for (size_t idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
-        _rx_queue[idx] = xQueueCreate(CONFIG_EXCHANGE_BUS_RX_QUEUE_SIZE, sizeof(ExchangeMessage));
+        _rx_queue[idx] = xQueueCreate(CONFIG_EXCHANGE_BUS_RX_QUEUE_SIZE, sizeof(exchange_message_t));
         assert(_rx_queue[idx] != nullptr);
 
-        _tx_queue[idx] = xQueueCreate(CONFIG_EXCHANGE_BUS_TX_QUEUE_SIZE, sizeof(ExchangeMessage));
+        _tx_queue[idx] = xQueueCreate(CONFIG_EXCHANGE_BUS_TX_QUEUE_SIZE, sizeof(exchange_message_t));
         assert(_tx_queue[idx] != nullptr);
     }
 }
@@ -35,60 +35,92 @@ QueueHandle_t ExchangeDevice::getTxQueue(ExchangeQueuePriority priority) const {
     return _tx_queue[priority];
 }
 
-esp_err_t ExchangeDevice::unpackBuffer(void *payload, ExchangeMessage &msg) {
-    memcpy(&msg, payload, sizeof(ExchangeHeader));
+bool ExchangeDevice::hasData() {
+    for (auto &queue: _tx_queue) {
+        if (uxQueueMessagesWaiting(queue)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+esp_err_t ExchangeDevice::unpackBuffer(void *payload, exchange_message_t &msg) {
+    auto *hdr = static_cast<transfer_header_t *>(payload);
+    if (hdr->stx != STX_BIT || hdr->etx != ETX_BIT) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    msg.if_type = hdr->if_type;
+    msg.if_num = hdr->if_num;
+    msg.flags = hdr->flags;
+    msg.seq_num = hdr->seq_num;
+    msg.pkt_type = hdr->pkt_type;
+    msg.length = hdr->payload_len + hdr->offset;
     msg.payload = payload;
 
-    auto *header = static_cast<ExchangeHeader *>(msg.payload);
-    uint16_t rxChecksum = msg.checksum;
-    header->checksum = 0;
-    header->checksum = computeChecksum(msg.payload, msg.payload_len);
+    uint16_t rx_checksum = hdr->checksum;
+    hdr->checksum = 0;
+    hdr->checksum = computeChecksum(msg.payload, hdr->payload_len);
 
-    if ( header->checksum != rxChecksum) {
-        esp_loge(device, "Checksum failed: %04x vs %04x",  header->checksum, rxChecksum);
+    if (hdr->checksum != rx_checksum) {
+        esp_loge(device, "Checksum failed: %04x vs %04x", hdr->checksum, rx_checksum);
         return ESP_ERR_INVALID_CRC;
     }
 
     return ESP_OK;
 }
 
-esp_err_t ExchangeDevice::packBuffer(const ExchangeMessage &origin, ExchangeMessage &msg, bool dma) {
-    constexpr uint16_t offset = sizeof(ExchangeHeader);
-    uint16_t total_len = origin.payload_len + offset;
+esp_err_t ExchangeDevice::packBuffer(const exchange_message_t &origin, exchange_message_t &msg) {
+    constexpr uint16_t offset = sizeof(transfer_header_t);
+    uint16_t total_len = origin.length + offset;
 
-    if (dma) {
-        if (!IS_DMA_ALIGNED(total_len)) {
-            MAKE_DMA_ALIGNED(total_len);
-        }
+#ifdef CONFIG_EXCHANGE_BUS_BUFFER_DMA
+    if (!IS_DMA_ALIGNED(total_len)) {
+        MAKE_DMA_ALIGNED(total_len);
     }
+#endif
 
     if (total_len > CONFIG_EXCHANGE_BUS_BUFFER) {
         esp_loge(device, "Max frame length exceeded %d.. drop it", total_len);
         return ESP_FAIL;
     }
 
-    memcpy(&msg, &origin, offset);
-
-    msg.payload = dma ? heap_caps_malloc(total_len, MALLOC_CAP_DMA) : malloc(total_len);
+    msg.if_type = origin.if_type;
+    msg.if_num = origin.if_num;
+    msg.flags = origin.flags;
+    msg.seq_num = origin.seq_num;
+    msg.pkt_type = origin.pkt_type;
+    msg.length = total_len;
+#ifdef CONFIG_EXCHANGE_BUS_BUFFER_DMA
+    msg.payload = heap_caps_malloc(total_len, MALLOC_CAP_DMA);
+#else
+    msg.payload = malloc(total_len);
+#endif
     assert(msg.payload);
-    memcpy(msg.payload, &msg, offset);
-    msg.payload_len = total_len;
+    memset (msg.payload, 0, total_len);
 
-    /* copy the data from caller */
-    if (origin.payload_len) {
-        memcpy(msg.payload + offset, origin.payload, origin.payload_len);
-    }
-    auto* hdr = static_cast<ExchangeHeader *>(msg.payload);
-    hdr->stx = STX_HDR;
+    auto *hdr = static_cast<transfer_header_t *>(msg.payload);
+    hdr->stx = STX_BIT;
+    hdr->if_type = origin.if_type;
+    hdr->if_num = origin.if_num;
+    hdr->flags = origin.flags;
+    hdr->seq_num = origin.seq_num;
+    hdr->pkt_type = origin.pkt_type;
+    hdr->checksum = 0;
     hdr->offset = offset;
-    hdr->payload_len = total_len;
-    msg.checksum = computeChecksum(msg.payload, msg.payload_len);
-    hdr->checksum = msg.checksum;
+    hdr->payload_len = origin.length;
+    hdr->etx = ETX_BIT;
+    /* copy the data from caller */
+    if (origin.length) {
+        memcpy(msg.payload + offset, origin.payload, origin.length);
+    }
+    hdr->checksum = computeChecksum(msg.payload, hdr->payload_len);
 
     return ESP_OK;
 }
 
-esp_err_t ExchangeDevice::postRxBuffer(ExchangeMessage &rxBuf) const {
+esp_err_t ExchangeDevice::postRxBuffer(exchange_message_t &rxBuf) const {
     BaseType_t ret = pdFAIL;
     if (rxBuf.if_type == ESP_INTERNAL_IF) {
         ret = xQueueSend(_rx_queue[PRIO_Q_HIGH], &rxBuf, portMAX_DELAY);
@@ -101,10 +133,10 @@ esp_err_t ExchangeDevice::postRxBuffer(ExchangeMessage &rxBuf) const {
     return ret == pdTRUE ? ESP_OK : ESP_FAIL;
 }
 
-esp_err_t ExchangeDevice::getNextTxBuffer(ExchangeMessage &txBuf) {
+esp_err_t ExchangeDevice::getNextTxBuffer(exchange_message_t &txBuf) {
     BaseType_t ret = pdFAIL;
 
-    for (auto& queue : _tx_queue) {
+    for (auto &queue: _tx_queue) {
         if (ret = xQueueReceive(queue, &txBuf, 0); ret == pdTRUE) {
             break;
         }
@@ -113,9 +145,9 @@ esp_err_t ExchangeDevice::getNextTxBuffer(ExchangeMessage &txBuf) {
     return ret == pdTRUE && txBuf.payload ? ESP_OK : ESP_FAIL;
 }
 
-esp_err_t ExchangeDevice::writeData(const ExchangeMessage &buffer, TickType_t tick) {
-    ExchangeMessage tx{};
-    esp_err_t ret = packBuffer(buffer, tx, false);
+esp_err_t ExchangeDevice::writeData(const exchange_message_t &buffer, TickType_t tick) {
+    exchange_message_t tx{};
+    esp_err_t ret = packBuffer(buffer, tx);
     if (ret == ESP_OK) {
         if (tx.if_type == ESP_INTERNAL_IF) {
             ret = xQueueSend(_tx_queue[PRIO_Q_HIGH], &tx, tick) == pdTRUE ? ESP_OK : ESP_FAIL;
@@ -129,9 +161,9 @@ esp_err_t ExchangeDevice::writeData(const ExchangeMessage &buffer, TickType_t ti
     return ret;
 }
 
-esp_err_t ExchangeDevice::readData(ExchangeMessage &buffer, TickType_t tick) {
+esp_err_t ExchangeDevice::readData(exchange_message_t &buffer, TickType_t tick) {
     while (true) {
-        for (auto& queue : _rx_queue) {
+        for (auto &queue: _rx_queue) {
             if (xQueueReceive(queue, &buffer, tick)) {
                 return ESP_OK;
             }

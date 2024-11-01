@@ -13,6 +13,10 @@ enum ComponentServiceId {
     Service_Sys_EspNowExchange,
 };
 
+enum ComponentEventId {
+    ComponentEvtId_Internal,
+    ComponentEvtId_ExchangeMessage
+};
 
 enum Component {
     Component_Exchange = CONFIG_EXCHANGE_BUS_COMPONENT_ID,

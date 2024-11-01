@@ -9,7 +9,6 @@
 #ifdef CONFIG_EXCHANGE_BUS_UART
 
 #include <core/Registry.h>
-#include <core/system/SystemService.h>
 #include <exchange/Exchange.h>
 
 class UartExchange : public AbstractExchange<Service_Sys_UartExchange> {

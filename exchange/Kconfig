@@ -3,6 +3,11 @@ menu "Darvik:Exchange"
         hex "Component Id"
         default 0x04
 
+    config EXCHANGE_BUS_ESP_NOW
+        bool "EspNow"
+        default true
+        help
+            EspNow exchange bus
 
     choice Bus
         prompt "Exchange bus"
@@ -24,10 +29,7 @@ menu "Darvik:Exchange"
             bool "I2C"
             help
                 I2C exchange bus
-        config EXCHANGE_BUS_ESP_NOW
-            bool "EspNow"
-            help
-                I2C exchange bus
+
     endchoice
 
     choice Uart
@@ -158,8 +160,8 @@ menu "Darvik:Exchange"
 
     choice SPI-Channel
         prompt "SPI Channel"
-        default EXCHANGE_BUS_SPI_CHANNEL_2 if CONFIG_IDF_TARGET_ESP32C3
-        default EXCHANGE_BUS_SPI_CHANNEL_3 if CONFIG_IDF_TARGET_ESP32S3
+        default EXCHANGE_BUS_SPI_CHANNEL_2 if IDF_TARGET_ESP32C3
+        default EXCHANGE_BUS_SPI_CHANNEL_3 if IDF_TARGET_ESP32S3
         depends on EXCHANGE_BUS_SPI
         help
             Please set mode
@@ -174,6 +176,7 @@ menu "Darvik:Exchange"
 
     config EXCHANGE_BUS_SPI_CHANNEL
         int
+        default 0 if EXCHANGE_BUS_SPI_CHANNEL_1
         default 1 if EXCHANGE_BUS_SPI_CHANNEL_2
         default 2 if EXCHANGE_BUS_SPI_CHANNEL_3
 
@@ -262,5 +265,13 @@ menu "Darvik:Exchange"
     config EXCHANGE_BUS_TX_QUEUE_SIZE
         int "TX Queue size"
         default 10
+
+    config EXCHANGE_BUS_BUFFER_DMA
+        int
+        default 1 if EXCHANGE_BUS_SPI
+
+    config EXCHANGE_ESP_NOW_BUS_BUFFER
+        int
+        default 250 if EXCHANGE_BUS_ESP_NOW
 
 endmenu
