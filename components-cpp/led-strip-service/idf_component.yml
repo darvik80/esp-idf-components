@@ -1,0 +1,6 @@
+version: "0.1.0"
+description: Led Strip
+dependencies:
+  espressif/led_strip: "*"
+  idf: ">=5.3"
+

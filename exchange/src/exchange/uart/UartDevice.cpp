@@ -55,6 +55,7 @@ UartDevice::UartDevice(uart_port_t port, int baudRate) {
 
 void UartDevice::rxTask() {
     esp_logi(uart, "rxTask running");
+
     uart_flush_input(_port);
     xQueueReset(_rxQueue);
 
@@ -71,7 +72,7 @@ void UartDevice::rxTask() {
                     // filter noise
                     if (event.size > CONFIG_EXCHANGE_BUS_BUFFER || hdr.stx != STX_HDR || hdr.payload_len >
                         CONFIG_EXCHANGE_BUS_BUFFER) {
-                        esp_logd(uart, "drop rx-data, invalid msg, event-size: %d, stx: %04x, payload:", event.size,
+                        esp_logd(uart, "drop rx-data, invalid msg, event-size: %zu, stx: %04x, payload: %zu", event.size,
                                  hdr.stx, hdr.payload_len);
                         uart_flush_input(_port);
                         xQueueReset(_rxQueue);
