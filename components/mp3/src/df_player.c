@@ -135,7 +135,7 @@ esp_err_t df_volume_decrease(struct mp3_player_t *self) {
     return df_exec(self, DF_VolumeDecrease, 0);
 }
 
-esp_err_t df_volume(struct mp3_player_t *self, uint16_t idx) {
+esp_err_t df_volume(struct mp3_player_t *self, uint8_t idx) {
     return df_exec(self, DF_VolumeSet, idx);
 }
 
