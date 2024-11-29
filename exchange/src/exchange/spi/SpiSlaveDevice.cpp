@@ -38,7 +38,7 @@ void SpiSlaveDevice::postTransCb(spi_slave_transaction_t *trans) {
     spi_slave_interface_config_t slvcfg = {
         .spics_io_num = CONFIG_EXCHANGE_BUS_SPI_CS_PIN,
         .flags = 0,
-        .queue_size = 7,
+        .queue_size = 1,
         .mode = 0,
         .post_setup_cb = postSetupCb,
         .post_trans_cb = postTransCb,
@@ -55,6 +55,8 @@ void SpiSlaveDevice::postTransCb(spi_slave_transaction_t *trans) {
     gpio_config_t io_conf_ready = {
         .pin_bit_mask = BIT64(pinDataReady),
         .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
 
@@ -81,12 +83,12 @@ void SpiSlaveDevice::postTransCb(spi_slave_transaction_t *trans) {
 
 void SpiSlaveDevice::exchange() {
     while (true) {
-        ExchangeMessage txBuf{}, rxBuf{};
+        exchange_message_t txBuf{}, rxBuf{};
         if (ESP_OK != getNextTxBuffer(txBuf)) {
             continue;
         }
 
-        esp_logd(spi_slave, "have data for master: %d", txBuf.payload_len);
+        esp_logi(spi_slave, "have data for master: %d", txBuf.length);
         spi_slave_transaction_t spi_trans{
             .length = CONFIG_EXCHANGE_BUS_BUFFER * SPI_BITS_PER_WORD,
             .tx_buffer = txBuf.payload,
@@ -94,12 +96,21 @@ void SpiSlaveDevice::exchange() {
         };
         memset(spi_trans.rx_buffer, 0, CONFIG_EXCHANGE_BUS_BUFFER);
 
+        if (txBuf.if_num != 0xF && txBuf.if_num != 0xFF) {
+            // pulse data is ready
+            gpio_set_level(pinDataReady, 0);
+            vTaskDelay(0);
+            gpio_set_level(pinDataReady, 1);
+        }
+
+        esp_logi(spi_slave, "sending: %d", txBuf.length);
         if (auto err = spi_slave_transmit(spi, &spi_trans, portMAX_DELAY); err != ESP_OK) {
             esp_loge(spi_slave, "spi transmit error, err: 0x%x (%s)", err, esp_err_to_name(err));
             free(spi_trans.rx_buffer);
             free((void *) spi_trans.tx_buffer);
             continue;
         }
+        esp_logi(spi_slave, "sent: %d", txBuf.length);
 
         /* Free any tx buffer, data is not relevant anymore */
         if (spi_trans.tx_buffer) {
@@ -127,27 +138,25 @@ void SpiSlaveDevice::exchange() {
     }
 }
 
-esp_err_t SpiSlaveDevice::getNextTxBuffer(ExchangeMessage &txBuf) {
+esp_err_t SpiSlaveDevice::getNextTxBuffer(exchange_message_t &txBuf) {
     if (ESP_OK == ExchangeDevice::getNextTxBuffer(txBuf)) {
+        esp_logi(spi_slave, "tx-data: %d", txBuf.length);
         return ESP_OK;
     }
 
     gpio_set_level(pinDataReady, 0);
-    ExchangeMessage dummy{
-        ExchangeHeader{
-            .if_type = 0xF,
-            .if_num = 0xF,
-        },
+    exchange_message_t dummy{
+        .if_type = 0xF,
+        .if_num = 0xF,
     };
-    return packBuffer(dummy, txBuf, true);
+    return packBuffer(dummy, txBuf);
 }
 
-esp_err_t SpiSlaveDevice::writeData(const ExchangeMessage &buffer, TickType_t tick) {
+esp_err_t SpiSlaveDevice::writeData(const exchange_message_t &buffer, TickType_t tick) {
     auto err = ExchangeDevice::writeData(buffer, tick);
     if (ESP_OK == err) {
         gpio_set_level(pinDataReady, 1);
     }
-
     return err;
 }
 

@@ -6,6 +6,7 @@
 
 #ifdef CONFIG_EXCHANGE_BUS_UART
 
+#include "UartDevice.h"
 #include <hal/uart_types.h>
 
 void UartExchange::setup() {

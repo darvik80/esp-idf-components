@@ -10,6 +10,7 @@
 #include <esp_timer.h>
 #include <core/Registry.h>
 #include <core/Task.h>
+#include <core/system/SystemEvent.h>
 #include <core/system/SystemService.h>
 #include <freertos/FreeRTOS.h>
 
@@ -17,6 +18,11 @@
 #include "ComponentConfig.h"
 
 #define STX_HDR 0xFDFE
+
+#define STX_BIT 0x7e
+#define ETX_BIT 0xef
+
+struct SystemEventChanged;
 
 enum ExchangeQueuePriority {
     PRIO_Q_HIGH,
@@ -42,40 +48,48 @@ enum ESP_PACKET_TYPE {
     PACKET_TYPE_EAPOL,
 };
 
-#pragma pack(push, 1)
-
-struct ExchangeHeader {
-    uint16_t stx;
-    uint8_t if_type;
-    uint8_t if_num;
-    uint8_t flags;
-    uint16_t seq_num;
-    uint8_t pkt_type;
-    uint16_t offset;
-    uint16_t length;
-    uint16_t checksum;
-    uint16_t payload_len;
-    uint8_t etx;
-};
-
-#pragma pack(pop)
-
 #define DMA_ALIGNMENT_BYTES	4
 #define DMA_ALIGNMENT_MASK	(DMA_ALIGNMENT_BYTES-1)
 #define IS_DMA_ALIGNED(VAL)	(!((VAL)& DMA_ALIGNMENT_MASK))
 #define MAKE_DMA_ALIGNED(VAL)  (VAL += DMA_ALIGNMENT_BYTES - \
 ((VAL)& DMA_ALIGNMENT_MASK))
 
-struct ExchangeMessage : ExchangeHeader {
-    void *payload;
-} __packed;
+#pragma pack(push, 1)
 
+typedef struct {
+    uint8_t stx;
+    uint8_t if_type;
+    uint8_t if_num;
+    uint8_t flags;
+    uint16_t seq_num;
+    uint8_t pkt_type;
+    uint16_t offset;
+    uint16_t payload_len;
+    uint16_t checksum;
+    uint8_t etx;
+} transfer_header_t;
+
+typedef struct {
+    uint8_t if_type;
+    uint8_t if_num;
+    uint8_t flags;
+    uint16_t seq_num;
+    uint8_t pkt_type;
+    uint16_t length;
+
+    union {
+        transfer_header_t *hdr;
+        void *payload;
+    };
+} exchange_message_t;
+
+#pragma pack(pop)
 
 class Exchange {
 public:
-    virtual void send(const ExchangeMessage &msg) = 0;
+    virtual void send(const exchange_message_t &msg) = 0;
 
-    virtual void onMessage(const ExchangeMessage &msg) = 0;
+    virtual void onMessage(const exchange_message_t &msg) = 0;
 
     virtual ~Exchange() = default;
 };
@@ -87,24 +101,26 @@ class ExchangeDevice {
 protected:
     ExchangeDevice();
 
+    bool hasData();
+
     uint16_t computeChecksum(void *buf, uint16_t len);
 
     QueueHandle_t getRxQueue(ExchangeQueuePriority priority) const;
 
     QueueHandle_t getTxQueue(ExchangeQueuePriority priority) const;
 
-    virtual esp_err_t unpackBuffer(void *payload, ExchangeMessage &msg);
+    virtual esp_err_t unpackBuffer(void *buf, exchange_message_t &msg);
 
-    virtual esp_err_t packBuffer(const ExchangeMessage &origin, ExchangeMessage &msg, bool dma);
+    virtual esp_err_t packBuffer(const exchange_message_t &origin, exchange_message_t &msg);
 
-    virtual esp_err_t postRxBuffer(ExchangeMessage &rxBuf) const;
+    virtual esp_err_t postRxBuffer(exchange_message_t &rxBuf) const;
 
-    virtual esp_err_t getNextTxBuffer(ExchangeMessage &txBuf);
+    virtual esp_err_t getNextTxBuffer(exchange_message_t &txBuf);
 
 public:
-    virtual esp_err_t writeData(const ExchangeMessage &buffer, TickType_t tick = portMAX_DELAY);
+    virtual esp_err_t writeData(const exchange_message_t &buffer, TickType_t tick = portMAX_DELAY);
 
-    virtual esp_err_t readData(ExchangeMessage &buffer, TickType_t tick = 1);
+    virtual esp_err_t readData(exchange_message_t &buffer, TickType_t tick = 1);
 
     virtual ~ExchangeDevice() {
         for (size_t idx = 0; idx < MAX_PRIORITY_QUEUES; idx++) {
@@ -114,8 +130,23 @@ public:
     }
 };
 
+namespace exchange_detail {
+    struct ExchangeInternalMessage : TMessage<ComponentEvtId_Internal, Component_Exchange> {
+        uint8_t id;
+        exchange_message_t message;
+    };
+}
+
+struct ExchangeMessage : TMessage<ComponentEvtId_ExchangeMessage, Component_Exchange> {
+    Exchange &exchange;
+    exchange_message_t message;
+};
+
 template<ServiceSubId id>
-class AbstractExchange : public Exchange, public TService<AbstractExchange<id>, id, Component_Exchange> {
+class AbstractExchange :
+        public Exchange,
+        public TService<AbstractExchange<id>, id, Component_Exchange>,
+        public TMessageSubscriber<AbstractExchange<id>, exchange_detail::ExchangeInternalMessage> {
 protected:
     ExchangeDevice *_device{};
 
@@ -124,71 +155,50 @@ public:
         : TService<AbstractExchange, id, Component_Exchange>(registry) {
     }
 
+    ExchangeDevice *getDevice() {
+        return _device;
+    }
+
     void setup() override {
         FreeRTOSTask::execute(
             [this] {
-                esp_logi(exchange, "exchange task running");
-                ExchangeMessage buf_handle{};
+                esp_logi(exchange, "%s task running", this->getServiceName().data());
+                exchange_message_t buf_handle{};
 
                 while (true) {
                     if (ESP_OK != _device->readData(buf_handle)) {
-                        esp_logi(exchange, "ignore message...");
+                        esp_logi(exchange, "%s ignore message...", this->getServiceName().data());
                         continue;
                     }
 
                     onMessage(buf_handle);
-                    free(buf_handle.payload);
                 }
             },
             this->getServiceName(), 4096
         );
-
-        FreeRTOSTask::execute([this]() {
-            vTaskDelay(pdMS_TO_TICKS(10000));
-            while (true) {
-                std::string ping = "ping " + std::to_string(esp_timer_get_time());
-                ExchangeMessage buf{
-                    ExchangeHeader{
-                        .if_type = ESP_INTERNAL_IF,
-                        .if_num = 0x08,
-                        .pkt_type = PACKET_TYPE_COMMAND_REQUEST,
-                    },
-                };
-                buf.payload = (void *) ping.data();
-                buf.payload_len = ping.size() + 1;
-                buf.length = buf.payload_len;
-                esp_logi(exchange, "Send: %s", ping.c_str());
-                _device->writeData(buf);
-                vTaskDelay(pdMS_TO_TICKS(10000));
-            }
-        }, "tester", 4096);
     }
 
-    void send(const ExchangeMessage &msg) override {
+    void send(const exchange_message_t &msg) override {
         if (_device) {
             _device->writeData(msg);
         }
     }
 
-    void onMessage(const ExchangeMessage &msg) override {
-        std::string_view ping((char *) (msg.payload + msg.offset), msg.length);
-        esp_logi(exchange, "Recv: %s", ping.data());
-        if (ping.starts_with("ping")) {
-            std::string pong = "pong";
-            pong += ping.substr(4);
-            ExchangeMessage buf{
-                ExchangeHeader{
-                    .if_type = ESP_INTERNAL_IF,
-                    .if_num = 0x02,
-                    .pkt_type = PACKET_TYPE_COMMAND_RESPONSE,
-                },
-            };
-            buf.payload = (void *) pong.data();
-            buf.payload_len = pong.size() + 1;
-            buf.length = buf.payload_len;
+    void onMessage(const exchange_message_t &msg) override {
+        getDefaultEventBus().post(exchange_detail::ExchangeInternalMessage{
+            .id = id,
+            .message = msg
+        });
+    }
 
-            esp_logi(exchange, "Send: %s", pong.c_str());
-            _device->writeData(buf);
+    void handle(const exchange_detail::ExchangeInternalMessage &msg) {
+        // process only internal message from correct exchange: case when esp-now & uart work together
+        if (msg.id == id) {
+            this->getRegistry().getEventBus().send(ExchangeMessage{
+                .exchange = *this,
+                .message = msg.message
+            });
+            free(msg.message.payload);
         }
     }
 };

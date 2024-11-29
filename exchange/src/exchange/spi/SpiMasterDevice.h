@@ -26,12 +26,12 @@ private:
     void exchange();
 
 protected:
-    esp_err_t getNextTxBuffer(ExchangeMessage &txBuf) override;
+    esp_err_t getNextTxBuffer(exchange_message_t &txBuf) override;
 
 public:
     explicit SpiMasterDevice();
 
-    esp_err_t writeData(const ExchangeMessage &buffer, TickType_t tick) override;
+    esp_err_t writeData(const exchange_message_t &buffer, TickType_t tick) override;
 
     ~SpiMasterDevice() override;
 };

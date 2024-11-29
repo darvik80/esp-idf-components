@@ -6,7 +6,6 @@
 
 #ifdef CONFIG_EXCHANGE_BUS_SPI
 
-#include <esp_timer.h>
 #include <core/Task.h>
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
@@ -44,7 +43,7 @@ void IRAM_ATTR SpiMasterDevice::gpio_ready_data_isr_handler(void *arg) {
     //     return; //ignore everything <1ms after an earlier irq
     // }
     // lasthandshaketime_us = currtime_us;
-
+    //
     //Give the semaphore.
     auto *self = static_cast<SpiMasterDevice *>(arg);
     BaseType_t mustYield = false;
@@ -55,9 +54,10 @@ void IRAM_ATTR SpiMasterDevice::gpio_ready_data_isr_handler(void *arg) {
 }
 
 void SpiMasterDevice::exchange() {
+
     xEventGroupSetBits(_events, HANDSHAKE_BIT | DATA_READY_BIT);
     while (true) {
-        EventBits_t res = xEventGroupWaitBits(_events, HANDSHAKE_BIT | DATA_READY_BIT, true, true, pdMS_TO_TICKS(500));
+        EventBits_t res = xEventGroupWaitBits(_events, HANDSHAKE_BIT | DATA_READY_BIT, true, true, pdMS_TO_TICKS(50));
         if ((res & (HANDSHAKE_BIT | DATA_READY_BIT)) != (HANDSHAKE_BIT | DATA_READY_BIT)) {
             auto handshake = gpio_get_level(pinHandshake);
             auto data_ready = gpio_get_level(pinDataReady);
@@ -72,12 +72,15 @@ void SpiMasterDevice::exchange() {
                 continue;
             }
 
-            esp_logw(spi_master, "[t]: slave is ready and has data...");
+            esp_logw(
+                spi_master, "[t]: slave is ready and has data: %.02x %d:%d, %d:%d...", (int)res,
+                handshake, (int)res & HANDSHAKE_BIT, data_ready, (int)res & DATA_READY_BIT
+            );
         } else {
             esp_logd(spi_master, "[n]: slave is ready and has data...");
         }
 
-        ExchangeMessage txBuf{}, rxBuf{};
+        exchange_message_t txBuf{}, rxBuf{};
         if (ESP_OK != getNextTxBuffer(txBuf)) {
             continue;
         }
@@ -118,9 +121,9 @@ void SpiMasterDevice::exchange() {
             }
         }
         gpio_set_level(pinCS, 1);
-        if (gpio_get_level(pinDataReady)) {
-            xEventGroupSetBits(_events, DATA_READY_BIT);
-        }
+        // if (gpio_get_level(pinDataReady)) {
+        //     xEventGroupSetBits(_events, DATA_READY_BIT);
+        // }
     }
 }
 
@@ -185,22 +188,22 @@ SpiMasterDevice::SpiMasterDevice() {
     usleep(500);
 }
 
-esp_err_t SpiMasterDevice::getNextTxBuffer(ExchangeMessage &txBuf) {
+esp_err_t SpiMasterDevice::getNextTxBuffer(exchange_message_t &txBuf) {
     if (ESP_OK == ExchangeDevice::getNextTxBuffer(txBuf)) {
-        xEventGroupSetBits(_events, DATA_READY_BIT);
+        if (hasData()) {
+            xEventGroupSetBits(_events, DATA_READY_BIT);
+        }
         return ESP_OK;
     }
 
-    ExchangeMessage dummy{
-        ExchangeHeader{
-            .if_type = 0xF,
-            .if_num = 0xF,
-        },
+    exchange_message_t dummy{
+        .if_type = 0xF,
+        .if_num = 0xF,
     };
-    return packBuffer(dummy, txBuf, true);
+    return packBuffer(dummy, txBuf);
 }
 
-esp_err_t SpiMasterDevice::writeData(const ExchangeMessage &buffer, TickType_t tick) {
+esp_err_t SpiMasterDevice::writeData(const exchange_message_t &buffer, TickType_t tick) {
     if (auto err = ExchangeDevice::writeData(buffer, tick); err != ESP_OK) {
         return err;
     }

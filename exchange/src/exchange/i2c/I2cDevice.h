@@ -16,7 +16,7 @@ constexpr gpio_num_t pinSCL{static_cast<gpio_num_t>(CONFIG_EXCHANGE_BUS_I2C_SCL_
 
 class I2cDevice : public ExchangeDevice {
 protected:
-    esp_err_t packBuffer(const ExchangeMessage &origin, ExchangeMessage &msg, bool dma) override {
+    esp_err_t packBuffer(const ExchangeMessage &origin, ExchangeMessage &msg) override {
         constexpr uint16_t offset = sizeof(ExchangeHeader);
         uint16_t total_len = origin.payload_len + offset;
 
@@ -57,7 +57,7 @@ protected:
                 .if_num = 0xF,
             },
         };
-        return packBuffer(dummy, txBuf, false);
+        return packBuffer(dummy, txBuf);
 
     }
 };

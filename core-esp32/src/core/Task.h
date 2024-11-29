@@ -90,9 +90,14 @@ public:
         create(entry, name, stackDepth, priority, core);
     }
 
-    ~FreeRTOSTask() {
+    void shutdown() {
         if (_task) {
             vTaskDelete(_task);
+            _task = nullptr;
         }
+    }
+
+    ~FreeRTOSTask() {
+        shutdown();
     }
 };

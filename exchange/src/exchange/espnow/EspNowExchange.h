@@ -4,9 +4,13 @@
 
 #pragma once
 
+#include <sdkconfig.h>
+#ifdef CONFIG_EXCHANGE_BUS_ESP_NOW
+
 #include <exchange/Exchange.h>
 
 class EspNowExchange : public AbstractExchange<Service_Sys_EspNowExchange> {
+
 public:
     explicit EspNowExchange(Registry &registry) : AbstractExchange(registry) {}
 
@@ -16,3 +20,5 @@ public:
 
     void setup() override;
 };
+
+#endif
