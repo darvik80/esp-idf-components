@@ -108,14 +108,13 @@ esp_err_t df_exec(struct mp3_player_t *self, uint8_t cmd, uint16_t arg) {
         .magicEnd = end,
     };
     msg.checksum = checksum(&msg);
+    ESP_LOG_BUFFER_HEX(TAG, &msg, sizeof(msg));
     uart_write_bytes(player->port, &msg, sizeof(df_message));
     xQueueReceive(player->rx_queue, &msg, portMAX_DELAY);
     ESP_LOGI(TAG, "Exec CMD ACK: %.02x/%.02x", cmd, msg.code);
 
     return msg.code == DF_OK || msg.code == DF_STAY2 ? ESP_OK : ESP_FAIL;
 }
-
-
 esp_err_t df_play_next(struct mp3_player_t *self) {
     return df_exec(self, DF_PlayNext, 0);
 }
@@ -136,7 +135,7 @@ esp_err_t df_volume_decrease(struct mp3_player_t *self) {
     return df_exec(self, DF_VolumeDecrease, 0);
 }
 
-esp_err_t df_volume(struct mp3_player_t *self, uint8_t idx) {
+esp_err_t df_volume(struct mp3_player_t *self, uint16_t idx) {
     return df_exec(self, DF_VolumeSet, idx);
 }
 
