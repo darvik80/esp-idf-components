@@ -14,7 +14,7 @@
 
 struct SNTPSetupMessage : TMessage<Service_Extra_EvtId_SNTP, Component_Extra>
 {
-    time_t time;
+    timeval time;
 };
 
 class SNTPService : public TService<SNTPService, Service_Extra_SNTP, Component_Extra>, public TMessageSubscriber<SNTPService, SNTPSetupMessage>
@@ -24,7 +24,7 @@ class SNTPService : public TService<SNTPService, Service_Extra_SNTP, Component_E
     {
         sntp_set_sync_status(SNTP_SYNC_STATUS_COMPLETED);
         getDefaultEventBus().post(SNTPSetupMessage{
-            .time = tv->tv_sec
+            .time = *tv
         });
     }
 #endif

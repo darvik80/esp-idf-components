@@ -24,7 +24,9 @@
                 &tm.tm_min,
                 &tm.tm_sec
             );
-            event.time = mktime(&tm);
+
+            event.time.tv_sec = mktime(&tm);
+            event.time.tv_usec = 0;
         }
 
         item = item->next;
@@ -38,7 +40,6 @@ SNTPService::SNTPService(Registry& registry): TService(registry)
 void SNTPService::setup()
 {
 #ifdef CONFIG_LWIP_DHCP_GET_NTP_SRV
-    esp_logi(sntp, "Initializing SNTP");
     esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(CONFIG_EXTRA_SERVICE_SNTP_SERVER);
     config.start = true; // start SNTP service explicitly (after connecting)
     config.server_from_dhcp = true;
@@ -71,14 +72,21 @@ void SNTPService::destroy()
 
 void SNTPService::handle(const SNTPSetupMessage& msg)
 {
-    struct tm tm = *gmtime(&msg.time);
+    // struct tm tm = *gmtime(&msg.time);
+    // esp_logi(
+    //     sntp, "set-time: %04d.%.02d.%02d %02d:%02d:%02d",
+    //     tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec
+    // );
+    //
+    // const timeval timestamp{
+    //     .tv_sec = msg.time,
+    // };
+    // //settimeofday(&timestamp, nullptr);
+
+    time_t now = time(nullptr);
+    struct tm tm = *gmtime(&now);
     esp_logi(
-        sntp, "set-time: %04d.%.02d.%02d %02d:%02d:%02d",
+        sntp, "get-time: %04d.%.02d.%02d %02d:%02d:%02d",
         tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec
     );
-
-    const timeval time{
-        .tv_sec = msg.time,
-    };
-    settimeofday(&time, nullptr);
 }
