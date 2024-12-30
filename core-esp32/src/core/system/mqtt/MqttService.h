@@ -124,6 +124,8 @@ public:
 
     void apply(const MqttProperties &props);
 
+    void setup() override;
+
     template<typename T>
     void addJsonHandler(std::string_view topic, mqtt_sub_type_t type) {
         _handlers.emplace(

@@ -3,18 +3,24 @@
 #include <core/system/mqtt/MqttService.h>
 #include <core/system/telemetry/TelemetryService.h>
 
+#include <sntp/SNTPService.h>
+
 class SimpleApplication
         : public Application<SimpleApplication>,
-          public TEventSubscriber<SimpleApplication, SystemEventChanged> {
+          public TMessageSubscriber<SimpleApplication, SystemEventChanged> {
 public:
     void userSetup() override {
+        getRegistry().getEventBus().subscribe(shared_from_this());
+
         getRegistry().create<TelemetryService>();
         getRegistry().create<WifiService>();
         auto &mqtt = getRegistry().create<MqttService>();
         mqtt.addJsonProcessor<Telemetry>("/telemetry");
+
+        getRegistry().create<SNTPService>();
     }
 
-    void onEvent(const SystemEventChanged &msg) {
+    void handle(const SystemEventChanged &msg) {
         switch (msg.status) {
             case SystemStatus::Wifi_Connected:
                 esp_logi(app, "wifi-connected");
@@ -41,8 +47,4 @@ extern "C" void app_main() {
 
     auto app = std::make_shared<SimpleApplication>();
     app->setup();
-
-    app->process();
-
-    app->destroy();
 }

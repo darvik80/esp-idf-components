@@ -57,4 +57,8 @@ public:
         return {*_iter, false};
     }
 
+    size_t size() const
+    {
+        return _brokers.size();
+    }
 };

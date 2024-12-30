@@ -1,0 +1,11 @@
+menu "Darvik:Extra Services"
+    config EXTRA_SERVICES_COMPONENT_ID
+        hex "Component Id"
+        default 0x05
+
+    menu "SNTP"
+        config EXTRA_SERVICE_SNTP_SERVER
+            string "SNTP Server"
+            default "pool.ntp.org"
+    endmenu
+endmenu

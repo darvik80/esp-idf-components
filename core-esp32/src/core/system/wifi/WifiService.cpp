@@ -60,7 +60,17 @@ void WifiService::apply(const WifiProperties &props) {
         esp_logi(wifi, "\tssid: %s", it.ssid.c_str());
     }
     _props = props;
+}
 
+void WifiService::setup()
+{
+    if (!_props.ap.empty())
+    {
+        _props.ap.push_back({
+            .ssid = CONFIG_CORE_WIFI_DEFAULT_SSID,
+            .password = CONFIG_CORE_WIFI_DEFAULT_PASSWORD,
+        });
+    }
     ESP_ERROR_CHECK(esp_netif_init());
     _netif = esp_netif_create_default_wifi_sta();
 

@@ -258,6 +258,23 @@ void MqttService::apply(const MqttProperties &props) {
     _balancer.apply(props);
 }
 
+void MqttService::setup()
+{
+   if (!_balancer.size())
+   {
+       MqttProperties props;
+       props.brokers.push_back({
+           .type = CONFIG_CORE_MQTT_DEFAULT_TYPE,
+           .uri = CONFIG_CORE_MQTT_DEFAULT_URI,
+           .username = CONFIG_CORE_MQTT_DEFAULT_USERNAME,
+           .password = CONFIG_CORE_MQTT_DEFAULT_PASSWORD,
+           .productName = CONFIG_CORE_MQTT_DEFAULT_PRODUCT_NAME,
+           .deviceName = CONFIG_CORE_MQTT_DEFAULT_DEVICE_NAME,
+       });
+       _balancer.apply(props);
+   }
+}
+
 MqttService::~MqttService() {
     vEventGroupDelete(_eventGroup);
 }

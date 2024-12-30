@@ -4,13 +4,59 @@ menu "Darvik:Core-esp32"
         default y
         help
             Enable WiFi module
-
+    config CORE_WIFI_DEFAULT_SSID
+        string "SSID"
+        default "A12A-08"
+        help
+            Default wifi SSID
+        depends on CORE_WIFI_ENABLE
+    config CORE_WIFI_DEFAULT_PASSWORD
+        string "PASSWORD"
+        default "66778899"
+        help
+            Default wifi password
+        depends on CORE_WIFI_ENABLE
     config CORE_MQTT_ENABLE
         bool "Enable MQTT Module"
         default y
         help
             Enable MQTT module
-
+    config CORE_MQTT_DEFAULT_TYPE
+        string "type"
+        default "local"
+        help
+            Default MQTT type
+        depends on CORE_MQTT_ENABLE
+    config CORE_MQTT_DEFAULT_URI
+        string "uri"
+        default "mqtt://media-vn.local"
+        help
+            Default MQTT uri
+        depends on CORE_MQTT_ENABLE
+    config CORE_MQTT_DEFAULT_USERNAME
+        string "username"
+        default "mqtt"
+        help
+            Default MQTT username
+        depends on CORE_MQTT_ENABLE
+    config CORE_MQTT_DEFAULT_PASSWORD
+        string "password"
+        default "mqtt"
+        help
+            Default MQTT password
+        depends on CORE_MQTT_ENABLE
+    config CORE_MQTT_DEFAULT_DEVICE_NAME
+        string "device name"
+        default "simple-demo"
+        help
+            Default MQTT device name
+        depends on CORE_MQTT_ENABLE
+    config CORE_MQTT_DEFAULT_PRODUCT_NAME
+        string "product name"
+        default "darvik-home"
+        help
+            Default MQTT product name
+        depends on CORE_MQTT_ENABLE
     config CORE_UART_CONSOLE_ENABLE
         bool "Enable Uart Console"
         default y

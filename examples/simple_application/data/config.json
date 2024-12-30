@@ -14,7 +14,7 @@
     "uri": "mqtt://media-vn.local",
     "username": "mqtt",
     "password": "mqtt",
-    "device-name": "magic-lamp",
+    "device-name": "simple",
     "product-name": "darvik-home"
   }
 }

@@ -80,6 +80,8 @@ public:
         return "wifi";
     }
 
+    void setup() override;
+
     void handle(const Command &cmd);
 
     void apply(const WifiProperties &props);
